@@ -4,6 +4,7 @@ import random
 from copy import copy
 import math
 import numpy as np
+import matplotlib.pyplot as plt
 from gymnasium.spaces import Discrete, MultiDiscrete
 from pettingzoo import ParallelEnv
 from pettingzoo.test import parallel_api_test
@@ -46,7 +47,7 @@ class CustomEnvironment():
 
         and must set up the environment so that render(), step(), and observe() can be called without an issue
         """
-        self.agents = copy(self.possible_agents)
+        self.agents = self.possible_agents[:]
         self.timestamp=0
 
         self.terr_x= np.random.randint(0,9)
@@ -58,8 +59,8 @@ class CustomEnvironment():
 
         observations = {
             a: (
-                self.terr_x + 10 * self.terr_y,
-                self.sol_x + 10 * self.sol_y,
+                [self.terr_x, self.terr_y],
+                [self.sol_x, self.sol_y],
                 self.terr_angle,
             )
             for a in self.agents
@@ -89,19 +90,19 @@ class CustomEnvironment():
         terr_action=actions["terrorist"]
         sol_action=actions["soldier"]
 
-        if terr_action == 1 and self.terr_x > 0:
+        if terr_action == 0 and self.terr_x > 0:
             self.terr_x -= 1 # left
-        elif terr_action == 2 and self.terr_x < 9:
+        elif terr_action == 1 and self.terr_x < 9:
             self.terr_x += 1 # right
-        elif terr_action == 3 and self.terr_y > 0:
+        elif terr_action == 2 and self.terr_y > 0:
             self.terr_y -= 1 # top
-        elif terr_action == 4 and self.terr_y < 9:
+        elif terr_action == 3 and self.terr_y < 9:
             self.terr_y += 1 # bottom
 
-        if terr_action == "i" :
+        if terr_action == 4 :
             self.terr_angle += 30 # rotate 30 degrees anti clockwise
-        elif terr_action == "d" and self.prisoner_x < 9:
-            self.prisoner_x -= 30 # rotate 30 degrees clockwise
+        elif terr_action == 5 :
+            self.terr_angle -= 30 # rotate 30 degrees clockwise
 
         # check termination conditions
         terminations = {a: False for a in self.agents}
@@ -123,20 +124,22 @@ class CustomEnvironment():
         ya2=slope2*x2+c2 # soldier with respect to line two -30 degrees
 
         if y2>ya2 and y2<ya1:
-            rewards={"soldier":1, "terrorist":1}
+            rewards={"soldier":0, "terrorist":1}
             terminations = {a: True for a in self.agents}
+        else:
+            rewards={"soldier":1, "terrorist":-1}
 
         truncations = {a: False for a in self.agents}
         if self.timestamp > 100:
-            rewards = {"prisoner": 0, "guard": 0}
-            truncations = {"prisoner": True, "guard": True}
+            rewards = {"soldier": 0, "terrorist": 0}
+            truncations = {"soldier": True, "terrorist": True}
         self.timestamp += 1
 
         # get observations
         observations = {
             a: (
-                self.terr_x + 10 * self.terr_y,
-                self.sol_x + 10 * self.sol_y,
+                [self.terr_x, self.terr_y],
+                [self.sol_x, self.sol_y],
                 self.terr_angle,
             )
             for a in self.agents
@@ -153,10 +156,13 @@ class CustomEnvironment():
     def render(self):
         """Renders the environment."""
         grid = np.full((10, 10), " ")
-        grid[self.prisoner_y, self.prisoner_x] = "P"
-        grid[self.guard_y, self.guard_x] = "G"
-        grid[self.escape_y, self.escape_x] = "E"
-        print(f"{grid} \n")
+        # print("soldier coordinates:", [self.sol_x, self.sol_y])
+        # print("terrorist coordinates:", [self.terr_x, self.terr_y])
+        # print("terrorost angle:", self.terr_angle)
+        grid[self.terr_x, self.terr_y] = "T"
+        grid[self.sol_x, self.sol_y] = "S"
+        # grid[self.escape_y, self.escape_x] = "E"
+        print(grid)
 
     @functools.lru_cache(maxsize=None)
     def observation_space(self, agent):
@@ -167,6 +173,74 @@ class CustomEnvironment():
     def action_space(self, agent):
         return Discrete(6)
     
-if __name__ == "__main__":
-    env = CustomEnvironment()
-    parallel_api_test(env, num_cycles=1_000_000)
+    def close(self):
+        """
+        Close should release any graphical displays, subprocesses, network connections
+        or any other environment data which should not be kept around after the
+        user is no longer using the environment.
+        """
+        pass
+    
+def visualize_environment(env, observations):
+    """Visualizes the environment.
+
+    Args:
+        env: The environment to visualize.
+        observations: The observations from the environment.
+    """
+
+    # Create a grid to represent the environment.
+    grid = np.zeros((10, 10))
+
+    # Place the agents on the grid.
+    for agent, observation in observations.items():
+        terr_corr, sol_corr, angle = observation
+        if agent=="terrorist":
+            grid[terr_corr[1], 9-terr_corr[0]] = 1
+        else:
+            grid[sol_corr[1], 9-sol_corr[0]] = 2
+
+        # Plot the agent's field of view.
+        field_of_view = np.linspace(angle - 30, angle + 30, 100)
+        x_points = (9-terr_corr[0]) + np.cos(field_of_view)
+        y_points = terr_corr[0] + np.sin(field_of_view)
+
+        plt.plot(x_points, y_points, color="gray")
+
+    # Plot the grid.
+    plt.imshow(grid)
+    plt.show()
+
+env=CustomEnvironment()
+
+observations, infos = env.reset()
+
+while env.agents:
+    # this is where you would insert your policy
+    actions = {agent: env.action_space(agent).sample() for agent in env.agents}
+    print(actions)
+    observations, rewards, terminations, truncations, infos = env.step(actions)
+    env.render()
+    print("observations:", observations)
+    print("rewards:", rewards)
+    print("----------------------------------------")
+    # visualize_environment(env, observations)
+env.close()
+# while env.agents:
+#   # Get the observations from the environment.
+#   observations = env.step(actions)
+
+#   # Visualize the environment.
+#   visualize_environment(env, observations)
+
+# import parallel_rps
+
+# env = parallel_rps.CustomEnvironment(render_mode="human")
+# observations, infos = env.reset()
+
+# while env.agents:
+#     # this is where you would insert your policy
+#     actions = {agent: env.action_space(agent).sample() for agent in env.agents}
+
+#     observations, rewards, terminations, truncations, infos = env.step(actions)
+# env.close()

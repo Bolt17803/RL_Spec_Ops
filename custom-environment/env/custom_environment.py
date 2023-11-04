@@ -9,6 +9,8 @@ from gymnasium.spaces import Discrete, MultiDiscrete
 from pettingzoo import ParallelEnv
 from pettingzoo.test import parallel_api_test
 from pettingzoo.test import render_test
+from visualizer import Visualizer
+import time
 
 class CustomEnvironment():
     metadata={
@@ -33,6 +35,8 @@ class CustomEnvironment():
         self.timestamp=None
         self.possible_agents=["terrorist", "soldier"]
 
+        #initializing rendering screen
+        self.viz = Visualizer()
 
     def reset(self, seed=None, options=None):
         """
@@ -161,8 +165,28 @@ class CustomEnvironment():
         # print("terrorost angle:", self.terr_angle)
         grid[self.terr_x, self.terr_y] = "T"
         grid[self.sol_x, self.sol_y] = "S"
+
         # grid[self.escape_y, self.escape_x] = "E"
+
         print(grid)
+
+        state = {
+            "m1":{
+                "species": "seal",
+                "pos":{"x":self.sol_x, "y":self.sol_y},
+                "angle":0,
+                "status": "alive"
+            },
+            "t1":{
+                "species": "terrorist",
+                "pos":{"x":self.terr_x,"y":self.terr_y},
+                "angle":self.terr_angle,
+                "status": "alive"
+            },
+        }
+        self.viz.update(state)
+        time.sleep(0.1)
+
 
     @functools.lru_cache(maxsize=None)
     def observation_space(self, agent):

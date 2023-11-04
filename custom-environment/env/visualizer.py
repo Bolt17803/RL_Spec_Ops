@@ -42,7 +42,7 @@ class Visualizer():
             },
         }
 
-    def update(self,state=None):
+    def update(self,state=None, reward={"soldier":0,"terrorist":0}):
         if(state == None): state = self.state
 
         for event in pygame.event.get():
@@ -69,10 +69,12 @@ class Visualizer():
                 fx, fy = ((px+2*a*math.sin(pa),py+2*a*math.cos(pa)))
                 signx = (-1,1)[(pa>=270 or pa<=90)]
                 signy = (-1,1)[(pa>=180)]
-                pygame.draw.line(self.screen,BLACK,(px,py),(px+signx*2*a*math.cos(pa+math.pi/6), py+signy*2*a*math.sin(pa+math.pi/6)))
-                pygame.draw.line(self.screen,BLACK,(px,py),(px+signx*2*a*math.cos(pa-math.pi/6), py+signy*2*a*math.sin(pa-math.pi/6)))
+                l = 1000
+                fov = (agent.fov)*(math.pi/180)
+                pygame.draw.line(self.screen,BLACK,(px,py),(px+signx*l*math.cos(pa+fov/2), py+signy*l*math.sin(pa+fov/2)))
+                pygame.draw.line(self.screen,BLACK,(px,py),(px+signx*l*math.cos(pa-fov/2), py+signy*l*math.sin(pa-fov/2)))
                 pa += math.pi/2
-                pygame.draw.polygon(self.screen, BLUE, ((px+a*math.sin(pa),py+a*math.cos(pa)), (px+a*math.sin(math.pi/3-pa), py-a*math.cos(math.pi/3-pa)), (px-a*math.sin(2*math.pi/3-pa), py+a*math.cos(2*math.pi/3-pa))))
+                pygame.draw.polygon(self.screen, (0,200*reward['soldier'],200+55*reward['soldier']), ((px+a*math.sin(pa),py+a*math.cos(pa)), (px+a*math.sin(math.pi/3-pa), py-a*math.cos(math.pi/3-pa)), (px-a*math.sin(2*math.pi/3-pa), py+a*math.cos(2*math.pi/3-pa))))
             elif(agent.species == 'terrorist'):
                 a = 20
                 pa = agent.angle
@@ -81,10 +83,12 @@ class Visualizer():
                 fx, fy = ((px+2*a*math.sin(pa),py+2*a*math.cos(pa)))
                 signx = (-1,1)[(pa>270 or pa<90)]
                 signy = (-1,1)[(pa>180)]
-                pygame.draw.line(self.screen,BLACK,(px,py),(px+signx*2*a*math.cos(pa+math.pi/6), py+signy*2*a*math.sin(pa+math.pi/6)))
-                pygame.draw.line(self.screen,BLACK,(px,py),(px+signx*2*a*math.cos(pa-math.pi/6), py+signy*2*a*math.sin(pa-math.pi/6)))
+                l = 1000
+                fov = (agent.fov)*(math.pi/180)
+                pygame.draw.line(self.screen,BLACK,(px,py),(px+signx*l*math.cos(pa+fov/2), py+signy*l*math.sin(pa+fov/2)))
+                pygame.draw.line(self.screen,BLACK,(px,py),(px+signx*l*math.cos(pa-fov/2), py+signy*l*math.sin(pa-fov/2)))
                 pa += math.pi/2
-                pygame.draw.polygon(self.screen, RED, ((px+a*math.sin(pa),py+a*math.cos(pa)), (px+a*math.sin(math.pi/3-pa), py-a*math.cos(math.pi/3-pa)), (px-a*math.sin(2*math.pi/3-pa), py+a*math.cos(2*math.pi/3-pa))))
+                pygame.draw.polygon(self.screen, (200+55*reward['terrorist'],200*reward['soldier'],0), ((px+a*math.sin(pa),py+a*math.cos(pa)), (px+a*math.sin(math.pi/3-pa), py-a*math.cos(math.pi/3-pa)), (px-a*math.sin(2*math.pi/3-pa), py+a*math.cos(2*math.pi/3-pa))))
 
         # Update the screen
         pygame.display.flip()

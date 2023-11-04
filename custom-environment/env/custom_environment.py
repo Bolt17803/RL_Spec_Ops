@@ -12,6 +12,14 @@ from pettingzoo.test import render_test
 from visualizer import Visualizer
 import time
 
+def angle_from_agent(px, py, sx, sy):
+    x = sx - px
+    y = sy - py
+    angle = math.atan2(y, x)
+    if angle < 0:
+        angle += 2 * math.pi
+    return 360-180*(1/math.pi)*angle
+
 class CustomEnvironment():
     metadata={
         "name":"custom_environment_v0",
@@ -34,9 +42,15 @@ class CustomEnvironment():
         self.sol_y=None
         self.timestamp=None
         self.possible_agents=["terrorist", "soldier"]
-
+        self.ya1 = 0
+        self.ya2 = 0
         #initializing rendering screen
         self.viz = Visualizer()
+        self.terr_fov = 120 #please keep <=179 so math works correctly!!! (we suck at coding)
+        self.soldier_fov = 120  #please keep <=179 so math works correctly!!! (we suck at coding)
+        if(self.soldier_fov > 180 or self.terr_fov > 180):
+            print("invalid fov angle, line 51 chusko bey")
+            exit()
 
     def reset(self, seed=None, options=None):
         """
@@ -54,12 +68,12 @@ class CustomEnvironment():
         self.agents = self.possible_agents[:]
         self.timestamp=0
 
-        self.terr_x= np.random.randint(0,9)
-        self.terr_y= np.random.randint(0,9)
+        self.terr_x=np.random.randint(0,9)
+        self.terr_y=np.random.randint(0,9)
         # self.terr_angle= np.random.randint(0,359)
         self.terr_angle= 0
         self.sol_x=np.random.randint(0,9)
-        self.sol_y =np.random.randint(0,9)
+        self.sol_y=np.random.randint(0,9)
 
         observations = {
             a: (
@@ -103,10 +117,14 @@ class CustomEnvironment():
         elif terr_action == 3 and self.terr_y < 9:
             self.terr_y += 1 # bottom
 
-        if terr_action == 4 :
+        elif terr_action == 4 :
             self.terr_angle += 30 # rotate 30 degrees anti clockwise
+            if self.terr_angle>360:
+                self.terr_angle=self.terr_angle-360
         elif terr_action == 5 :
             self.terr_angle -= 30 # rotate 30 degrees clockwise
+            if self.terr_angle<0:
+                self.terr_angle=360+self.terr_angle
 
         # check termination conditions
         terminations = {a: False for a in self.agents}
@@ -116,22 +134,43 @@ class CustomEnvironment():
         x2, y2=self.sol_x, self.sol_y # soldier coordinates
 
         # the field of view for the terrorist will be +-30 degrees
-        slope2 = self.terr_angle-30
-        slope1 = self.terr_angle+30
-        slope1=math.tan(math.radians(slope1))
-        slope2=math.tan(math.radians(slope2))
+        # slope2 = self.terr_angle-30
+        # if slope2<0:
+        #     slope2=360+slope2
+        # slope1 = self.terr_angle+30
+        # if slope1>360:
+        #     slope1=slope1-360
+        # slope1=math.tan(math.radians(slope1))
+        # slope2=math.tan(math.radians(slope2))
+        #
+        # c1 = y1-slope1*x1
+        # c2 = y2-slope2*x2
+        #
+        # ya1=slope1*x2+c1 # soldier with respect to line one +30 degrees
+        # ya2=slope2*x2+c2 # soldier with respect to line two -30 degrees
 
-        c1 = y1-slope1*x1
-        c2 = y2-slope2*x2
-
-        ya1=slope1*x2+c1 # soldier with respect to line one +30 degrees
-        ya2=slope2*x2+c2 # soldier with respect to line two -30 degrees
-
-        if y2>ya2 and y2<ya1:
+        angle_soldier = angle_from_agent(self.terr_x, self.terr_y, self.sol_x, self.sol_y)
+        tt1 = self.terr_angle-self.terr_fov/2
+        if(tt1<0): tt1 = 360+tt1
+        tt2 = self.terr_angle+self.terr_fov/2
+        print(tt1,angle_soldier,tt2,self.terr_angle)
+        if(((angle_soldier >= tt1) and tt2 >= (angle_soldier)) and (tt2>tt1)):
+            rewards={"soldier":0, "terrorist":1}
+            terminations = {a: True for a in self.agents}
+        elif((tt2<tt1) and (angle_soldier<=tt2 or angle_soldier>=tt1)):
             rewards={"soldier":0, "terrorist":1}
             terminations = {a: True for a in self.agents}
         else:
             rewards={"soldier":1, "terrorist":-1}
+        # elif(slope1<270 or slope2>90):
+        #     if ya1<y2 and y2<ya2:
+        #         rewards={"soldier":0, "terrorist":1}
+        #         terminations = {a: True for a in self.agents}
+        #     else:
+        #         rewards={"soldier":1, "terrorist":-1}
+        # else:
+        #     rewards={"soldier":1, "terrorist":-1}
+        # self.rewards = rewards
 
         truncations = {a: False for a in self.agents}
         if self.timestamp > 100:
@@ -163,8 +202,8 @@ class CustomEnvironment():
         # print("soldier coordinates:", [self.sol_x, self.sol_y])
         # print("terrorist coordinates:", [self.terr_x, self.terr_y])
         # print("terrorost angle:", self.terr_angle)
-        grid[self.terr_x, self.terr_y] = "T"
-        grid[self.sol_x, self.sol_y] = "S"
+        grid[self.terr_y,self.terr_x] = "T"
+        grid[self.sol_y,self.sol_x] = "S"
 
         # grid[self.escape_y, self.escape_x] = "E"
 
@@ -175,17 +214,19 @@ class CustomEnvironment():
                 "species": "seal",
                 "pos":{"x":self.sol_x, "y":self.sol_y},
                 "angle":0,
+                "fov":self.soldier_fov,
                 "status": "alive"
             },
             "t1":{
                 "species": "terrorist",
                 "pos":{"x":self.terr_x,"y":self.terr_y},
                 "angle":self.terr_angle,
+                "fov":self.terr_fov,
                 "status": "alive"
             },
         }
-        self.viz.update(state)
-        time.sleep(0.1)
+        self.viz.update(state, rewards)
+        time.sleep(0.3)
 
 
     @functools.lru_cache(maxsize=None)

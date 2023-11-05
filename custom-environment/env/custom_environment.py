@@ -46,8 +46,8 @@ class CustomEnvironment():
         self.ya2 = 0
         #initializing rendering screen
         self.viz = Visualizer()
-        self.terr_fov = 120 #please keep <=179 so math works correctly!!! (we suck at coding)
-        self.soldier_fov = 120  #please keep <=179 so math works correctly!!! (we suck at coding)
+        self.terr_fov = 60 #please keep <=179 so math works correctly!!! (we suck at coding)
+        self.soldier_fov = 60  #please keep <=179 so math works correctly!!! (we suck at coding)
         if(self.soldier_fov > 180 or self.terr_fov > 180):
             print("invalid fov angle, line 51 chusko bey")
             exit()
@@ -173,7 +173,7 @@ class CustomEnvironment():
         # self.rewards = rewards
 
         truncations = {a: False for a in self.agents}
-        if self.timestamp > 100:
+        if self.timestamp > 1000:
             rewards = {"soldier": 0, "terrorist": 0}
             truncations = {"soldier": True, "terrorist": True}
         self.timestamp += 1

@@ -12,7 +12,7 @@ from pettingzoo.test import render_test
 from visualizer import Visualizer
 import time
 
-def angle_from_agent(px, py, sx, sy):
+def angle_from_agent(px, py, sx, sy): # (px,py) are the coordinates from which (sx,sy) angle is measured
     x = sx - px
     y = sy - py
     angle = math.atan2(y, x)
@@ -46,8 +46,9 @@ class CustomEnvironment():
         self.ya2 = 0
         #initializing rendering screen
         self.viz = Visualizer()
-        self.terr_fov = 60 #please keep <=179 so math works correctly!!! (we suck at coding)
-        self.soldier_fov = 60  #please keep <=179 so math works correctly!!! (we suck at coding)
+        self.terr_fov = 30 #please keep <=179 so math works correctly!!! (we suck at coding)
+        self.soldier_fov = 30  #please keep <=179 so math works correctly!!! (we suck at coding)
+        self.shoot_angle = 15
         if(self.soldier_fov > 180 or self.terr_fov > 180):
             print("invalid fov angle, line 51 chusko bey")
             exit()
@@ -71,7 +72,7 @@ class CustomEnvironment():
         self.terr_x=np.random.randint(0,9)
         self.terr_y=np.random.randint(0,9)
         # self.terr_angle= np.random.randint(0,359)
-        self.terr_angle= 0
+        self.terr_angle= 315
         self.sol_x=np.random.randint(0,9)
         self.sol_y=np.random.randint(0,9)
 
@@ -150,18 +151,68 @@ class CustomEnvironment():
         # ya2=slope2*x2+c2 # soldier with respect to line two -30 degrees
 
         angle_soldier = angle_from_agent(self.terr_x, self.terr_y, self.sol_x, self.sol_y)
+        # right most angles
+        ss1 = self.terr_angle-self.shoot_angle/2
+        if(ss1<0) : ss1 = 360+ss1
         tt1 = self.terr_angle-self.terr_fov/2
         if(tt1<0): tt1 = 360+tt1
+        # left most angles
+        ss2 = self.terr_angle+self.shoot_angle/2
+        if(ss2>=360): ss2=ss2-360
         tt2 = self.terr_angle+self.terr_fov/2
+        if(tt2>=360): tt2=tt2-360
         print(tt1,angle_soldier,tt2,self.terr_angle)
-        if(((angle_soldier >= tt1) and tt2 >= (angle_soldier)) and (tt2>tt1)):
-            rewards={"soldier":0, "terrorist":1}
-            terminations = {a: True for a in self.agents}
-        elif((tt2<tt1) and (angle_soldier<=tt2 or angle_soldier>=tt1)):
-            rewards={"soldier":0, "terrorist":1}
-            terminations = {a: True for a in self.agents}
+        '''the scope of angle is 0<=angle<=359, there is no 360'''
+        # if(((angle_soldier >= tt1) and tt2 >= (angle_soldier)) and (tt2>tt1)):
+        #     rewards={"soldier":0, "terrorist":1}
+        #     terminations = {a: True for a in self.agents}
+        # elif((tt2<tt1) and (angle_soldier<=tt2 or angle_soldier>=tt1)):
+        #     rewards={"soldier":0, "terrorist":1}
+        #     terminations = {a: True for a in self.agents}
+        # else:
+        #     rewards={"soldier":1, "terrorist":-1}
+        if tt2>tt1 :
+            if ((angle_soldier>=tt1) and (angle_soldier<ss1)): # soldier in between right most shoot and fov line
+                rewards={"soldier":-1, "terrorist":1}
+            elif((angle_soldier>=ss1) and (angle_soldier<=ss2)): # soldier in the shooting angle
+                rewards={"soldier":-2, "terrorist":2}
+                terminations = {a: True for a in self.agents}
+            elif((angle_soldier>ss2) and (angle_soldier<=tt2)):
+                rewards={"soldier":-1, "terrorist":1}
+            else:
+                rewards={"soldier":2, "terrorist":-1}
         else:
-            rewards={"soldier":1, "terrorist":-1}
+            if tt1>ss1:
+                if (((angle_soldier>=tt1) and (angle_soldier>ss1)) or ((angle_soldier<tt1) and (angle_soldier<ss1))): # soldier in between right most shoot and fov line
+                    rewards={"soldier":-1, "terrorist":1}
+                elif((angle_soldier>=ss1) and (angle_soldier<=ss2)): # soldier in the shooting angle
+                    rewards={"soldier":-2, "terrorist":2}
+                    terminations = {a: True for a in self.agents}
+                elif((angle_soldier>ss2) and (angle_soldier<=tt2)):
+                    rewards={"soldier":-1, "terrorist":1}
+                else:
+                    rewards={"soldier":2, "terrorist":-1}
+            elif ss1>ss2:
+                if ((angle_soldier>=tt1) and (angle_soldier<ss1)): # soldier in between right most shoot and fov line
+                    rewards={"soldier":-1, "terrorist":1}
+                elif(((angle_soldier>=ss1) and (angle_soldier>ss2)) or ((angle_soldier<ss1) and (angle_soldier<=ss2))):
+                    rewards={"soldier":-2, "terrorist":2}
+                    terminations = {a: True for a in self.agents}
+                elif((angle_soldier>ss2) and (angle_soldier<=tt2)):
+                    rewards={"soldier":-1, "terrorist":1}
+                else:
+                    rewards={"soldier":2, "terrorist":-1}
+            else:
+                if ((angle_soldier>=tt1) and (angle_soldier<ss1)): # soldier in between right most shoot and fov line
+                    rewards={"soldier":-1, "terrorist":1}
+                elif((angle_soldier>=ss1) and (angle_soldier<=ss2)): # soldier in the shooting angle
+                    rewards={"soldier":-2, "terrorist":2}
+                    terminations = {a: True for a in self.agents}
+                elif(((angle_soldier>tt2) and (angle_soldier>ss2)) or ((angle_soldier<=tt2) and (angle_soldier<ss2))):
+                    rewards={"soldier":-1, "terrorist":1}
+                else:
+                    rewards={"soldier":2, "terrorist":-1}
+
         # elif(slope1<270 or slope2>90):
         #     if ya1<y2 and y2<ya2:
         #         rewards={"soldier":0, "terrorist":1}
@@ -215,6 +266,7 @@ class CustomEnvironment():
                 "pos":{"x":self.sol_x, "y":self.sol_y},
                 "angle":0,
                 "fov":self.soldier_fov,
+                "shoot_angle":self.shoot_angle,
                 "status": "alive"
             },
             "t1":{
@@ -222,6 +274,7 @@ class CustomEnvironment():
                 "pos":{"x":self.terr_x,"y":self.terr_y},
                 "angle":self.terr_angle,
                 "fov":self.terr_fov,
+                "shoot_angle":self.shoot_angle,
                 "status": "alive"
             },
         }
@@ -281,6 +334,7 @@ env=CustomEnvironment()
 observations, infos = env.reset()
 
 while env.agents:
+    print(env.agents)
     # this is where you would insert your policy
     actions = {agent: env.action_space(agent).sample() for agent in env.agents}
     print(actions)

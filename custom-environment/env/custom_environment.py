@@ -20,7 +20,7 @@ def angle_from_agent(px, py, sx, sy): # (px,py) are the coordinates from which (
         angle += 2 * math.pi
     return 360-180*(1/math.pi)*angle
 
-class CustomEnvironment():
+class Spec_Ops_Env(ParallelEnv):
     metadata={
         "name":"custom_environment_v0",
     }
@@ -133,22 +133,6 @@ class CustomEnvironment():
 
         x1, y1=self.terr_x, self.terr_y #terrorist coordinates
         x2, y2=self.sol_x, self.sol_y # soldier coordinates
-
-        # the field of view for the terrorist will be +-30 degrees
-        # slope2 = self.terr_angle-30
-        # if slope2<0:
-        #     slope2=360+slope2
-        # slope1 = self.terr_angle+30
-        # if slope1>360:
-        #     slope1=slope1-360
-        # slope1=math.tan(math.radians(slope1))
-        # slope2=math.tan(math.radians(slope2))
-        #
-        # c1 = y1-slope1*x1
-        # c2 = y2-slope2*x2
-        #
-        # ya1=slope1*x2+c1 # soldier with respect to line one +30 degrees
-        # ya2=slope2*x2+c2 # soldier with respect to line two -30 degrees
 
         angle_soldier = angle_from_agent(self.terr_x, self.terr_y, self.sol_x, self.sol_y)
         # right most angles
@@ -329,7 +313,7 @@ def visualize_environment(env, observations):
     plt.imshow(grid)
     plt.show()
 
-env=CustomEnvironment()
+env=Spec_Ops_Env()
 
 observations, infos = env.reset()
 

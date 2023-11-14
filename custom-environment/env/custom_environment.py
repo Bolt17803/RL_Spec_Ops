@@ -35,22 +35,30 @@ class Spec_Ops_Env(ParallelEnv):
 
         these attributes should not be changed after initialization
         '''
+        #Initializing agents
+        self.possible_agents=["terrorist", "soldier"]
+        self.shoot_angle = 15   #Common to all agents
+
         self.terr_x=None
         self.terr_y=None
         self.terr_angle=None
+        self.terr_fov = 30 #please keep <=179 so math works correctly!!!
+
         self.sol_x=None
         self.sol_y=None
+        self.sol_angle=None
+        self.soldier_fov = 30  #please keep <=179 so math works correctly!!!
+
         self.timestamp=None
-        self.possible_agents=["terrorist", "soldier"]
         self.ya1 = 0
         self.ya2 = 0
+
         #initializing rendering screen
         self.viz = Visualizer()
-        self.terr_fov = 30 #please keep <=179 so math works correctly!!! (we suck at coding)
-        self.soldier_fov = 30  #please keep <=179 so math works correctly!!! (we suck at coding)
-        self.shoot_angle = 15
-        if(self.soldier_fov > 180 or self.terr_fov > 180):
-            print("invalid fov angle, line 51 chusko bey")
+
+        #Error Checking
+        if(self.soldier_fov >= 180 or self.terr_fov >= 180):
+            print("invalid fov angle, line 51,52 chusko bey")
             exit()
 
     def reset(self, seed=None, options=None):
@@ -59,28 +67,31 @@ class Spec_Ops_Env(ParallelEnv):
         it needs to initialize the follownig attributes:
         - agents
         - timestamp
-        - terrorist coordinates
-        - soldier coordinates
+        - terrorist coordinates, angles
+        - soldier coordinates, angles
         - observation
         - infos
 
         and must set up the environment so that render(), step(), and observe() can be called without an issue
         """
+
         self.agents = self.possible_agents[:]
         self.timestamp=0
 
-        self.terr_x=np.random.randint(0,9)
+        self.terr_x=np.random.randint(0,9)  #Randomly place the terrorist on the grid, facing an arbitrary angle
         self.terr_y=np.random.randint(0,9)
-        # self.terr_angle= np.random.randint(0,359)
-        self.terr_angle= 315
-        self.sol_x=np.random.randint(0,9)
+        self.terr_angle=np.random.randint(0,359)
+
+        self.sol_x=np.random.randint(0,9)  #Randomly place the soldier on the grid, facing an arbitrary angle
         self.sol_y=np.random.randint(0,9)
+        self.sol_angle=np.random.randint(0,359)
 
         observations = {
             a: (
                 [self.terr_x, self.terr_y],
                 [self.sol_x, self.sol_y],
                 self.terr_angle,
+                self.sol_angle,
             )
             for a in self.agents
         }
@@ -97,6 +108,7 @@ class Spec_Ops_Env(ParallelEnv):
         - coordinates of terrorist
         - coordinates of soldier
         - rotation of the terrorist
+        - rotation of the soldier
         - termination condition
         - rewards
         - timestamp
@@ -105,6 +117,7 @@ class Spec_Ops_Env(ParallelEnv):
 
         add any internl state  use by observe() or render()
         """
+
         # execute actions
         terr_action=actions["terrorist"]
         sol_action=actions["soldier"]
@@ -117,7 +130,6 @@ class Spec_Ops_Env(ParallelEnv):
             self.terr_y -= 1 # top
         elif terr_action == 3 and self.terr_y < 9:
             self.terr_y += 1 # bottom
-
         elif terr_action == 4 :
             self.terr_angle += 30 # rotate 30 degrees anti clockwise
             if self.terr_angle>360:
@@ -127,13 +139,31 @@ class Spec_Ops_Env(ParallelEnv):
             if self.terr_angle<0:
                 self.terr_angle=360+self.terr_angle
 
-        # check termination conditions
+        if sol_action == 0 and self.sol_x > 0:
+            self.sol_x -= 1 # left
+        elif sol_action == 1 and self.sol_x < 9:
+            self.sol_x += 1 # right
+        elif sol_action == 2 and self.sol_y > 0:
+            self.sol_y -= 1 # top
+        elif sol_action == 3 and self.sol_y < 9:
+            self.sol_y += 1 # bottom
+        elif sol_action == 4 :
+            self.sol_angle += 30 # rotate 30 degrees anti clockwise
+            if self.sol_angle>360:
+                self.sol_angle=self.sol_angle-360
+        elif sol_action == 5 :
+            self.sol_angle -= 30 # rotate 30 degrees clockwise
+            if self.sol_angle<0:
+                self.sol_angle=360+self.sol_angle
+
+        # Initialize termination conditions and rewards
         terminations = {a: False for a in self.agents}
         rewards = {a: 0 for a in self.agents}
 
         x1, y1=self.terr_x, self.terr_y #terrorist coordinates
         x2, y2=self.sol_x, self.sol_y # soldier coordinates
 
+        #Calculate the rewards and punishments
         angle_soldier = angle_from_agent(self.terr_x, self.terr_y, self.sol_x, self.sol_y)
         # right most angles
         ss1 = self.terr_angle-self.shoot_angle/2
@@ -155,6 +185,69 @@ class Spec_Ops_Env(ParallelEnv):
         #     terminations = {a: True for a in self.agents}
         # else:
         #     rewards={"soldier":1, "terrorist":-1}
+
+        #Terrorist: FOV & Shoot Range Rewards/Punishments
+        if tt2>tt1 :
+            if ((angle_soldier>=tt1) and (angle_soldier<ss1)): # soldier in between right most shoot and fov line
+                rewards={"soldier":-1, "terrorist":1}
+            elif((angle_soldier>=ss1) and (angle_soldier<=ss2)): # soldier in the shooting angle
+                rewards={"soldier":-2, "terrorist":2}
+                terminations = {a: True for a in self.agents}
+            elif((angle_soldier>ss2) and (angle_soldier<=tt2)):
+                rewards={"soldier":-1, "terrorist":1}
+            else:
+                rewards={"soldier":2, "terrorist":-1}
+        else:
+            if tt1>ss1:
+                if (((angle_soldier>=tt1) and (angle_soldier>ss1)) or ((angle_soldier<tt1) and (angle_soldier<ss1))): # soldier in between right most shoot and fov line
+                    rewards={"soldier":-1, "terrorist":1}
+                elif((angle_soldier>=ss1) and (angle_soldier<=ss2)): # soldier in the shooting angle
+                    rewards={"soldier":-2, "terrorist":2}
+                    terminations = {a: True for a in self.agents}
+                elif((angle_soldier>ss2) and (angle_soldier<=tt2)):
+                    rewards={"soldier":-1, "terrorist":1}
+                else:
+                    rewards={"soldier":2, "terrorist":-1}
+            elif ss1>ss2:
+                if ((angle_soldier>=tt1) and (angle_soldier<ss1)): # soldier in between right most shoot and fov line
+                    rewards={"soldier":-1, "terrorist":1}
+                elif(((angle_soldier>=ss1) and (angle_soldier>ss2)) or ((angle_soldier<ss1) and (angle_soldier<=ss2))):
+                    rewards={"soldier":-2, "terrorist":2}
+                    terminations = {a: True for a in self.agents}
+                elif((angle_soldier>ss2) and (angle_soldier<=tt2)):
+                    rewards={"soldier":-1, "terrorist":1}
+                else:
+                    rewards={"soldier":2, "terrorist":-1}
+            else:
+                if ((angle_soldier>=tt1) and (angle_soldier<ss1)): # soldier in between right most shoot and fov line
+                    rewards={"soldier":-1, "terrorist":1}
+                elif((angle_soldier>=ss1) and (angle_soldier<=ss2)): # soldier in the shooting angle
+                    rewards={"soldier":-2, "terrorist":2}
+                    terminations = {a: True for a in self.agents}
+                elif(((angle_soldier>tt2) and (angle_soldier>ss2)) or ((angle_soldier<=tt2) and (angle_soldier<ss2))):
+                    rewards={"soldier":-1, "terrorist":1}
+                else:
+                    rewards={"soldier":2, "terrorist":-1}
+
+        #Soldier: FOV & Shoot Range Rewards/Punishments
+        tt1_ = tt1  #Saving variables
+        tt2_ = tt2
+        ss1_ = ss1
+        ss2_ = ss2
+        angle_soldier_ = angle_soldier
+
+        angle_soldier = angle_from_agent(self.sol_x, self.sol_y, self.terr_x, self.terr_y)
+        # right most angles
+        ss1 = self.terr_angle-self.shoot_angle/2
+        if(ss1<0) : ss1 = 360+ss1
+        tt1 = self.terr_angle-self.terr_fov/2
+        if(tt1<0): tt1 = 360+tt1
+        # left most angles
+        ss2 = self.terr_angle+self.shoot_angle/2
+        if(ss2>=360): ss2=ss2-360
+        tt2 = self.terr_angle+self.terr_fov/2
+        if(tt2>=360): tt2=tt2-360
+        print(tt1,angle_soldier,tt2,self.terr_angle)
         if tt2>tt1 :
             if ((angle_soldier>=tt1) and (angle_soldier<ss1)): # soldier in between right most shoot and fov line
                 rewards={"soldier":-1, "terrorist":1}
@@ -219,11 +312,12 @@ class Spec_Ops_Env(ParallelEnv):
                 [self.terr_x, self.terr_y],
                 [self.sol_x, self.sol_y],
                 self.terr_angle,
+                self.sol_angle,
             )
             for a in self.agents
         }
 
-        # Get dummy infos (not used in this example)
+        # Get dummy infos (not used for now)
         infos = {a: {} for a in self.agents}
 
         if any(terminations.values()) or all(truncations.values()):
@@ -248,7 +342,7 @@ class Spec_Ops_Env(ParallelEnv):
             "m1":{
                 "species": "seal",
                 "pos":{"x":self.sol_x, "y":self.sol_y},
-                "angle":0,
+                "angle":self.sol_angle,
                 "fov":self.soldier_fov,
                 "shoot_angle":self.shoot_angle,
                 "status": "alive"

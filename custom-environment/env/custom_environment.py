@@ -1,16 +1,25 @@
-import gymnasium.spaces
 import functools
 import random
 from copy import copy
 import math
 import numpy as np
 import matplotlib.pyplot as plt
+import time
+
+import gymnasium
+import gymnasium.spaces
 from gymnasium.spaces import Discrete, MultiDiscrete
-from pettingzoo import ParallelEnv
+
+from pettingzoo import AECEnv, ParallelEnv
+from pettingzoo.utils import parallel_to_aec
+from pettingzoo.utils import agent_selector, wrappers
 from pettingzoo.test import parallel_api_test
 from pettingzoo.test import render_test
+
 from visualizer import Visualizer
-import time
+
+#Default variables
+MAP_SIZE = (80, 80)
 
 def angle_from_agent(px, py, sx, sy): # (px,py) are the coordinates from which (sx,sy) angle is measured
     x = sx - px
@@ -25,7 +34,7 @@ class Spec_Ops_Env(ParallelEnv):
         "name":"custom_environment_v0",
     }
 
-    def __init__(self):
+    def __init__(self, render_mode=None, config=None):
         '''
         we initialize the following:
         - the starting location of terrorist
@@ -35,31 +44,89 @@ class Spec_Ops_Env(ParallelEnv):
 
         these attributes should not be changed after initialization
         '''
-        #Initializing agents
-        self.possible_agents=["terrorist", "soldier"]
-        self.shoot_angle = 15   #Common to all agents
 
-        self.terr_x=None
+        self.config = config or {}
+
+        #Initializing
+        self.possible_agents=["terrorist_"+str(i) for i in range(config.get('num_terr',1))]
+        self.possible_agents.extend(["soldier_"+str(i) for i in range(config.get('num_sol',1))])
+        self.shoot_angle = config.get('shoot_angle', 15)   #Common to all agentsagents
+
+        self.terr_x=None    #Change this to support multiple agents
         self.terr_y=None
         self.terr_angle=None
-        self.terr_fov = 30 #please keep <=179 so math works correctly!!!
+        self.terr_fov = config.get('terr_fov', 30) #please keep <=179 so math works correctly!!!
 
         self.sol_x=None
         self.sol_y=None
         self.sol_angle=None
-        self.soldier_fov = 30  #please keep <=179 so math works correctly!!!
+        self.soldier_fov = config.get('sol_fov', 30)  #please keep <=179 so math works correctly!!!
+
+        self.agent_name_mapping = dict(
+            zip(self.possible_agents, list(range(len(self.possible_agents))))
+        )
 
         self.timestamp=None
-        self.ya1 = 0
-        self.ya2 = 0
 
         #initializing rendering screen
-        self.viz = Visualizer()
+        self.render_mode = config.get('render_mode', 'ansi')    #Check clashing with render_mode variable
+        self.map_size = config.get('map_size', MAP_SIZE)
+        self.viz = Visualizer(grid=self.map_size)
 
         #Error Checking
         if(self.soldier_fov >= 180 or self.terr_fov >= 180):
             print("invalid fov angle, line 51,52 chusko bey")
             exit()
+
+    @functools.lru_cache(maxsize=None)
+    def observation_space(self, agent):
+        # gymnasium spaces are defined and documented here: https://gymnasium.farama.org/api/spaces/
+        return MultiDiscrete([10 * 10] * 3) #Change this
+
+    @functools.lru_cache(maxsize=None)
+    def action_space(self, agent):
+        return Discrete(6)
+
+    def render(self):
+        """Renders the environment."""
+        grid = np.full((10, 10), " ")
+        # print("soldier coordinates:", [self.sol_x, self.sol_y])
+        # print("terrorist coordinates:", [self.terr_x, self.terr_y])
+        # print("terrorost angle:", self.terr_angle)
+        grid[self.terr_y,self.terr_x] = "T"
+        grid[self.sol_y,self.sol_x] = "S"
+
+        # grid[self.escape_y, self.escape_x] = "E"
+
+        print(grid)
+
+        state = {
+            "m1":{
+                "species": "seal",
+                "pos":{"x":self.sol_x, "y":self.sol_y},
+                "angle":self.sol_angle,
+                "fov":self.soldier_fov,
+                "shoot_angle":self.shoot_angle,
+                "status": "alive"
+            },
+            "t1":{
+                "species": "terrorist",
+                "pos":{"x":self.terr_x,"y":self.terr_y},
+                "angle":self.terr_angle,
+                "fov":self.terr_fov,
+                "shoot_angle":self.shoot_angle,
+                "status": "alive"
+            },
+        }
+        self.viz.update(state, rewards)
+        time.sleep(0.3)
+
+    def close(self):
+        """
+        CLose releases the pygame graphical display when env is no longer being used.
+        """
+        self.Viz.quit()
+        pass
 
     def reset(self, seed=None, options=None):
         """
@@ -74,29 +141,34 @@ class Spec_Ops_Env(ParallelEnv):
 
         and must set up the environment so that render(), step(), and observe() can be called without an issue
         """
+        np.random.seed(seed) if seed else print('No Seeding only Determinism!!!!')
 
         self.agents = self.possible_agents[:]
         self.timestamp=0
 
-        self.terr_x=np.random.randint(0,9)  #Randomly place the terrorist on the grid, facing an arbitrary angle
-        self.terr_y=np.random.randint(0,9)
-        self.terr_angle=np.random.randint(0,359)
+        self.terr_x, self.terr_y, self.terr_angle = self.config.get('terr_x',-1), self.config.get('terr_y',-1), self.config.get('terr_angle', -1)  #Error handling for invalid inputs required!
+        self.terr_x=np.random.randint(0,9) if self.terr_x<0  #Randomly place the terrorist on the grid, facing an arbitrary angle
+        self.terr_y=np.random.randint(0,9) if self.terr_y<0
+        self.terr_angle=np.random.randint(0,359) if self.terr_angle<0
 
-        self.sol_x=np.random.randint(0,9)  #Randomly place the soldier on the grid, facing an arbitrary angle
-        self.sol_y=np.random.randint(0,9)
-        self.sol_angle=np.random.randint(0,359)
-
-        observations = {
-            a: (
-                [self.terr_x, self.terr_y],
-                [self.sol_x, self.sol_y],
-                self.terr_angle,
-                self.sol_angle,
-            )
-            for a in self.agents
-        }
+        self.sol_x, self.sol_y, self.sol_angle = self.config.get('sol_x',-1), self.config.get('sol_y',-1), self.config.get('sol_angle', -1)
+        self.sol_x=np.random.randint(0,9) if self.sol_x<0  #Randomly place the soldier on the grid, facing an arbitrary angle
+        self.sol_y=np.random.randint(0,9) if self.sol_y<0
+        self.sol_angle=np.random.randint(0,359) if self.sol_angle<0
 
         infos = {a: {} for a in self.agents}
+        self.observations = {agent: NONE for agent in self.agents}  #used by step() and observe()
+        # self.observations = {
+        #     a: (
+        #         [self.terr_x, self.terr_y],
+        #         [self.sol_x, self.sol_y],
+        #         self.terr_angle,
+        #         self.sol_angle,
+        #     )
+        #     for a in self.agents
+        # }
+
+        self.state = np.zeros((self.config.get('map_size', MAP_SIZE)))  #{agent: NONE for agent in self.agents} #used by step()
 
         return observations, infos
 
@@ -118,47 +190,18 @@ class Spec_Ops_Env(ParallelEnv):
         add any internl state  use by observe() or render()
         """
 
+        # If a user passes in actions with no agents, then just return empty observations, etc.
+        if not actions:
+            self.agents = []
+            return {}, {}, {}, {}, {}
+
+
         # execute actions
-        terr_action=actions["terrorist"]
-        sol_action=actions["soldier"]
-
-        if terr_action == 0 and self.terr_x > 0:
-            self.terr_x -= 1 # left
-        elif terr_action == 1 and self.terr_x < 9:
-            self.terr_x += 1 # right
-        elif terr_action == 2 and self.terr_y > 0:
-            self.terr_y -= 1 # top
-        elif terr_action == 3 and self.terr_y < 9:
-            self.terr_y += 1 # bottom
-        elif terr_action == 4 :
-            self.terr_angle += 30 # rotate 30 degrees anti clockwise
-            if self.terr_angle>360:
-                self.terr_angle=self.terr_angle-360
-        elif terr_action == 5 :
-            self.terr_angle -= 30 # rotate 30 degrees clockwise
-            if self.terr_angle<0:
-                self.terr_angle=360+self.terr_angle
-
-        if sol_action == 0 and self.sol_x > 0:
-            self.sol_x -= 1 # left
-        elif sol_action == 1 and self.sol_x < 9:
-            self.sol_x += 1 # right
-        elif sol_action == 2 and self.sol_y > 0:
-            self.sol_y -= 1 # top
-        elif sol_action == 3 and self.sol_y < 9:
-            self.sol_y += 1 # bottom
-        elif sol_action == 4 :
-            self.sol_angle += 30 # rotate 30 degrees anti clockwise
-            if self.sol_angle>360:
-                self.sol_angle=self.sol_angle-360
-        elif sol_action == 5 :
-            self.sol_angle -= 30 # rotate 30 degrees clockwise
-            if self.sol_angle<0:
-                self.sol_angle=360+self.sol_angle
+        self.move(actions)
 
         # Initialize termination conditions and rewards
         terminations = {a: False for a in self.agents}
-        rewards = {a: 0 for a in self.agents}
+        rewards = {a: 0 for a in self.agents}   # rewards for all agents are placed in the rewards dictionary to be returned
 
         x1, y1=self.terr_x, self.terr_y #terrorist coordinates
         x2, y2=self.sol_x, self.sol_y # soldier coordinates
@@ -290,15 +333,6 @@ class Spec_Ops_Env(ParallelEnv):
                 else:
                     rewards={"soldier":-1, "terrorist":2}
 
-        # elif(slope1<270 or slope2>90):
-        #     if ya1<y2 and y2<ya2:
-        #         rewards={"soldier":0, "terrorist":1}
-        #         terminations = {a: True for a in self.agents}
-        #     else:
-        #         rewards={"soldier":1, "terrorist":-1}
-        # else:
-        #     rewards={"soldier":1, "terrorist":-1}
-        # self.rewards = rewards
 
         truncations = {a: False for a in self.agents}
         if self.timestamp > 1000:
@@ -307,15 +341,16 @@ class Spec_Ops_Env(ParallelEnv):
         self.timestamp += 1
 
         # get observations
-        observations = {
-            a: (
-                [self.terr_x, self.terr_y],
-                [self.sol_x, self.sol_y],
-                self.terr_angle,
-                self.sol_angle,
-            )
-            for a in self.agents
-        }
+        observations = self.get_observations()
+        # observations = {
+        #     a: (
+        #         [self.terr_x, self.terr_y],
+        #         [self.sol_x, self.sol_y],
+        #         self.terr_angle,
+        #         self.sol_angle,
+        #     )
+        #     for a in self.agents
+        # }
 
         # Get dummy infos (not used for now)
         infos = {a: {} for a in self.agents}
@@ -323,59 +358,73 @@ class Spec_Ops_Env(ParallelEnv):
         if any(terminations.values()) or all(truncations.values()):
             self.agents = []
 
+        if self.render_mode != None:
+            self.render()
+
         return observations, rewards, terminations, truncations, infos
 
-    def render(self):
-        """Renders the environment."""
-        grid = np.full((10, 10), " ")
-        # print("soldier coordinates:", [self.sol_x, self.sol_y])
-        # print("terrorist coordinates:", [self.terr_x, self.terr_y])
-        # print("terrorost angle:", self.terr_angle)
-        grid[self.terr_y,self.terr_x] = "T"
-        grid[self.sol_y,self.sol_x] = "S"
+    def move(self, actions):
 
-        # grid[self.escape_y, self.escape_x] = "E"
+        terr_action=actions["terrorist"]
+        sol_action=actions["soldier"]
 
-        print(grid)
+        #NOTE: Write logic for walls in both action failsafe and alsoi action masks
+        if terr_action == 0 and self.terr_x > 0:
+            self.terr_x -= 1 # left
+        elif terr_action == 1 and self.terr_x < 9:
+            self.terr_x += 1 # right
+        elif terr_action == 2 and self.terr_y > 0:
+            self.terr_y -= 1 # top
+        elif terr_action == 3 and self.terr_y < 9:
+            self.terr_y += 1 # bottom
+        elif terr_action == 4 :
+            self.terr_angle += 30 # rotate 30 degrees anti clockwise
+            if self.terr_angle>360:
+                self.terr_angle=self.terr_angle-360
+        elif terr_action == 5 :
+            self.terr_angle -= 30 # rotate 30 degrees clockwise
+            if self.terr_angle<0:
+                self.terr_angle=360+self.terr_angle
 
-        state = {
-            "m1":{
-                "species": "seal",
-                "pos":{"x":self.sol_x, "y":self.sol_y},
-                "angle":self.sol_angle,
-                "fov":self.soldier_fov,
-                "shoot_angle":self.shoot_angle,
-                "status": "alive"
-            },
-            "t1":{
-                "species": "terrorist",
-                "pos":{"x":self.terr_x,"y":self.terr_y},
-                "angle":self.terr_angle,
-                "fov":self.terr_fov,
-                "shoot_angle":self.shoot_angle,
-                "status": "alive"
-            },
-        }
-        self.viz.update(state, rewards)
-        time.sleep(0.3)
+        if sol_action == 0 and self.sol_x > 0:
+            self.sol_x -= 1 # left
+        elif sol_action == 1 and self.sol_x < 9:
+            self.sol_x += 1 # right
+        elif sol_action == 2 and self.sol_y > 0:
+            self.sol_y -= 1 # top
+        elif sol_action == 3 and self.sol_y < 9:
+            self.sol_y += 1 # bottom
+        elif sol_action == 4 :
+            self.sol_angle += 30 # rotate 30 degrees anti clockwise
+            if self.sol_angle>360:
+                self.sol_angle=self.sol_angle-360
+        elif sol_action == 5 :
+            self.sol_angle -= 30 # rotate 30 degrees clockwise
+            if self.sol_angle<0:
+                self.sol_angle=360+self.sol_angle
+
+        #Generate Action masks
+        terr_action_mask = np.ones(6, dtype=np.int8)
+        if self.terr_x == 0:
+            terr_action_mask[0] = 0
+        if self.terr_x == self.map_size[1]-1:
+            terr_action_mask[1] = 0
+        if self.terr_y == 0:
+            terr_action_mask[2] = 0
+        if self.terr_y == self.map_size[0]-1:
+            terr_action_mask[3] = 0
+
+        sol_action_mask = np.ones(6, dtype=np.int8)
+        if self.sol_x == 0:
+            sol_action_mask[0] = 0
+        if self.sol_x == self.map_size[1]-1:
+            sol_action_mask[1] = 0
+        if self.sol_y == 0:
+            sol_action_mask[2] = 0
+        if self.sol_y == self.map_size[0]-1:
+            sol_action_mask[3] = 0
 
 
-    @functools.lru_cache(maxsize=None)
-    def observation_space(self, agent):
-        # gymnasium spaces are defined and documented here: https://gymnasium.farama.org/api/spaces/
-        return MultiDiscrete([10 * 10] * 3)
-    
-    @functools.lru_cache(maxsize=None)
-    def action_space(self, agent):
-        return Discrete(6)
-    
-    def close(self):
-        """
-        Close should release any graphical displays, subprocesses, network connections
-        or any other environment data which should not be kept around after the
-        user is no longer using the environment.
-        """
-        pass
     
 def visualize_environment(env, observations):
     """Visualizes the environment.
@@ -407,38 +456,20 @@ def visualize_environment(env, observations):
     plt.imshow(grid)
     plt.show()
 
-env=Spec_Ops_Env()
+if __name__ == '__main__':
+    env=Spec_Ops_Env()
 
-observations, infos = env.reset()
+    observations, infos = env.reset()
 
-while env.agents:
-    print(env.agents)
-    # this is where you would insert your policy
-    actions = {agent: env.action_space(agent).sample() for agent in env.agents}
-    print(actions)
-    observations, rewards, terminations, truncations, infos = env.step(actions)
-    env.render()
-    print("observations:", observations)
-    print("rewards:", rewards)
-    print("----------------------------------------")
-    # visualize_environment(env, observations)
-env.close()
-# while env.agents:
-#   # Get the observations from the environment.
-#   observations = env.step(actions)
-
-#   # Visualize the environment.
-#   visualize_environment(env, observations)
-
-
-# import parallel_rps
-
-# env = parallel_rps.CustomEnvironment(render_mode="human")
-# observations, infos = env.reset()
-
-# while env.agents:
-#     # this is where you would insert your policy
-#     actions = {agent: env.action_space(agent).sample() for agent in env.agents}
-
-#     observations, rewards, terminations, truncations, infos = env.step(actions)
-# env.close()
+    while env.agents:
+        print(env.agents)
+        # this is where you would insert your policy
+        actions = {agent: env.action_space(agent).sample() for agent in env.agents}
+        print(actions)
+        observations, rewards, terminations, truncations, infos = env.step(actions)
+        env.render()
+        print("observations:", observations)
+        print("rewards:", rewards)
+        print("----------------------------------------")
+        # visualize_environment(env, observations)
+    env.close()

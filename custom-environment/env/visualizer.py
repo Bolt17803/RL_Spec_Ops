@@ -104,5 +104,5 @@ class Visualizer():
         # Update the screen
         pygame.display.flip()
 
-        def quit(self):
-            pygame.quit()
+    def quit(self):
+        pygame.quit()

@@ -53,12 +53,12 @@ class Visualizer():
 
         # Draw the agents
         for agent in self.agents:
-            print(state[agent])
+            #print(state[agent])
             agent_name = agent
             agent = AttributeDict(state[agent])
-            print(agent)
+            #print(agent)
             if('soldier' in agent_name):
-                print('sol')
+                #print('sol')
                 a = 20
                 pa = agent.angle
                 pa = math.pi*pa/180
@@ -78,7 +78,7 @@ class Visualizer():
                 # pygame.draw.polygon(self.screen, (0,200*reward['soldier'],200+55*reward['soldier']), ((px+a*math.sin(pa),py+a*math.cos(pa)), (px+a*math.sin(math.pi/3-pa), py-a*math.cos(math.pi/3-pa)), (px-a*math.sin(2*math.pi/3-pa), py+a*math.cos(2*math.pi/3-pa))))
                 pygame.draw.polygon(self.screen, (0,0,255), ((px+a*math.sin(pa),py+a*math.cos(pa)), (px+a*math.sin(math.pi/3-pa), py-a*math.cos(math.pi/3-pa)), (px-a*math.sin(2*math.pi/3-pa), py+a*math.cos(2*math.pi/3-pa))))
             elif('terrorist' in agent_name):
-                print('terr')
+                #print('terr')
                 a = 20
                 pa = agent.angle
                 pa = math.pi*pa/180

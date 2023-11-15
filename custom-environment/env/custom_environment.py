@@ -5,6 +5,7 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+import os
 
 import gymnasium
 import gymnasium.spaces
@@ -63,7 +64,7 @@ class Spec_Ops_Env(ParallelEnv):
         # self.soldier_fov = self.config.get('sol_fov', 30)  #please keep <=179 so math works correctly!!!
 
         self.agent_name_mapping = dict(
-            zip(self.possible_agents, list(range(len(self.possible_agents))))
+            zip(self.possible_agents, list(range(1,len(self.possible_agents)+1)))
         )
 
         self.timestamp=None
@@ -112,13 +113,15 @@ class Spec_Ops_Env(ParallelEnv):
             self.state[agent]['fov']=self.config.get(agent,{'fov': 40})['fov']  #Should be <179 becoz of math!
             self.state[agent]['shoot_angle']=self.config.get(agent,{'shooting_angle': 15})['shooting_angle']
             self.state[agent]['hp'] = 100
-            print('stateu', self.state[agent])
+            self.state['map'][self.state[agent]['y']][self.state[agent]['x']] = self.agent_name_mapping[agent]
 
             #Error Checking
             if(self.state[agent]['fov'] >= 180 or self.state[agent]['fov'] >= 180):
                 print("invalid fov angle agent ki icchav, chusko bey")
                 exit()
-
+        self.render()
+        print(self.state)
+        #time.sleep(10)
         infos = {a: {} for a in self.agents}    #Just a dummy, we are not using it for now
         self.observations = {agent: None for agent in self.agents}
 
@@ -181,8 +184,7 @@ class Spec_Ops_Env(ParallelEnv):
             action = actions[agent]
 
             #Making it's current position free
-            (self.state['map'])[self.state[agent]['x']][self.state[agent]['y']] = 0
-
+            self.state['map'][self.state[agent]['y']][self.state[agent]['x']] = 0
             #Move the agent along with failsafes
             if action == 0 and self.state[agent]['x'] > 0:
                 self.state[agent]['x'] -= 1 # left
@@ -202,8 +204,7 @@ class Spec_Ops_Env(ParallelEnv):
                     self.state[agent]['angle']=self.state[agent]['angle']+360
 
             #Marking the newly occupied position of agent in the state map
-            (self.state['map'])[self.state[agent]['x']][self.state[agent]['y']] = self.agent_name_mapping[agent]
-
+            self.state['map'][self.state[agent]['y']][self.state[agent]['x']] = self.agent_name_mapping[agent]
             #Generate Action masks
             action_mask = np.ones(6, dtype=np.int8)
             if self.state[agent]['x'] == 0:
@@ -354,6 +355,16 @@ class Spec_Ops_Env(ParallelEnv):
             rewards[i]=reward_s[i]+reward_t[i]
 
     def update_observations(self):
+
+        os.system('cls' if os.name == 'nt' else 'clear')
+        for i in self.state['map']:
+            for j in i:
+                if(j==0):
+                    print('.', end='')
+                else:
+                    print('T', end='') if j == 1 else print('S', end='')
+            print()
+        print('------------------------------------\n\n\n')
         return {}
 
     def render(self):
@@ -401,50 +412,20 @@ class Spec_Ops_Env(ParallelEnv):
         pass
 
 
-def visualize_environment(env, observations):
-    """Visualizes the environment.
-
-    Args:
-        env: The environment to visualize.
-        observations: The observations from the environment.
-    """
-
-    # Create a grid to represent the environment.
-    grid = np.zeros((10, 10))
-
-    # Place the agents on the grid.
-    for agent, observation in observations.items():
-        terr_corr, sol_corr, angle = observation
-        if agent=="terrorist":
-            grid[terr_corr[1], 9-terr_corr[0]] = 1
-        else:
-            grid[sol_corr[1], 9-sol_corr[0]] = 2
-
-        # Plot the agent's field of view.
-        field_of_view = np.linspace(angle - 30, angle + 30, 100)
-        x_points = (9-terr_corr[0]) + np.cos(field_of_view)
-        y_points = terr_corr[0] + np.sin(field_of_view)
-
-        plt.plot(x_points, y_points, color="gray")
-
-    # Plot the grid.
-    plt.imshow(grid)
-    plt.show()
-
 if __name__ == '__main__':
     env=Spec_Ops_Env()
 
     observations, infos = env.reset()
 
     while env.agents:
-        print(env.agents)
+        #print(env.agents)
         # this is where you would insert your policy
         actions = {agent: env.action_space(agent).sample() for agent in env.agents}
-        print(actions)
+        #print(actions)
         observations, rewards, terminations, truncations, infos = env.step(actions)
         env.render()
-        print("observations:", observations)
-        print("rewards:", rewards)
-        print("----------------------------------------")
+        #print("observations:", observations)
+        #print("rewards:", rewards)
+        #print("----------------------------------------")
         # visualize_environment(env, observations)
     env.close()

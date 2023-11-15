@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import os
+import map
 
 import gymnasium
 import gymnasium.spaces
@@ -102,13 +103,13 @@ class Spec_Ops_Env(ParallelEnv):
         self.agents = self.possible_agents[:]
         self.timestamp=0
 
-        self.state = {"map": np.zeros((self.config.get('map_size', MAP_SIZE)))}
+        self.state = {'map':map.read_map_file('Maps/map_0.txt')} #{"map": np.zeros((self.config.get('map_size', MAP_SIZE)))}
         for agent in self.agents:
-            #Error handling for invalid inputs required!
+            #VVIP NOTE: Handling for invalid inputs/Initialization required!
             self.state[agent] = {}
             self.state[agent]['x'], self.state[agent]['y'], self.state[agent]['angle'] = self.config.get(agent,{'x':-1})['x'], self.config.get(agent,{'y':-1})['y'], self.config.get(agent,{'angle':-1})['angle']
-            self.state[agent]['x']=np.random.randint(0,9) if self.state[agent]['x']<0 else self.state[agent]['x'] #Randomly place the terrorist on the grid, facing an arbitrary angle
-            self.state[agent]['y']=np.random.randint(0,9) if self.state[agent]['y']<0 else self.state[agent]['y']
+            self.state[agent]['x']=np.random.randint(0,self.map_size[1]) if self.state[agent]['x']<0 else self.state[agent]['x'] #Randomly place the terrorist on the grid, facing an arbitrary angle
+            self.state[agent]['y']=np.random.randint(0,self.map_size[0]) if self.state[agent]['y']<0 else self.state[agent]['y']
             self.state[agent]['angle']=np.random.randint(0,359) if self.state[agent]['angle']<0 else self.state[agent]['angle']
             self.state[agent]['fov']=self.config.get(agent,{'fov': 40})['fov']  #Should be <179 becoz of math!
             self.state[agent]['shoot_angle']=self.config.get(agent,{'shooting_angle': 15})['shooting_angle']
@@ -186,13 +187,13 @@ class Spec_Ops_Env(ParallelEnv):
             #Making it's current position free
             self.state['map'][self.state[agent]['y']][self.state[agent]['x']] = 0
             #Move the agent along with failsafes
-            if action == 0 and self.state[agent]['x'] > 0:
+            if action == 0 and self.state[agent]['x'] > 0 and self.state['map'][self.state[agent]['y']][self.state[agent]['x']-1]==0:
                 self.state[agent]['x'] -= 1 # left
-            elif action == 1 and self.state[agent]['x'] < 9:
+            elif action == 1 and self.state[agent]['x'] < 9 and self.state['map'][self.state[agent]['y']][self.state[agent]['x']+1]==0:
                 self.state[agent]['x'] += 1 # right
-            elif action == 2 and self.state[agent]['y'] > 0:
+            elif action == 2 and self.state[agent]['y'] > 0 and self.state['map'][self.state[agent]['y']-1][self.state[agent]['x']]==0:
                 self.state[agent]['y'] -= 1 # top
-            elif action == 3 and self.state[agent]['y'] < 9:
+            elif action == 3 and self.state[agent]['y'] < 9 and self.state['map'][self.state[agent]['y']+1][self.state[agent]['x']]==0:
                 self.state[agent]['y'] += 1 # bottom
             elif action == 4 :
                 self.state[agent]['angle'] += 30 # rotate 30 degrees anti clockwise
@@ -207,13 +208,13 @@ class Spec_Ops_Env(ParallelEnv):
             self.state['map'][self.state[agent]['y']][self.state[agent]['x']] = self.agent_name_mapping[agent]
             #Generate Action masks
             action_mask = np.ones(6, dtype=np.int8)
-            if self.state[agent]['x'] == 0:
+            if self.state[agent]['x'] == 0 or self.state['map'][self.state[agent]['y']][self.state[agent]['x']-1]!=0:
                 action_mask[0] = 0
-            if self.state[agent]['x'] == self.map_size[1]-1:
+            if self.state[agent]['x'] == self.map_size[1]-1 or self.state['map'][self.state[agent]['y']][self.state[agent]['x']+1]!=0:
                 action_mask[1] = 0
-            if self.state[agent]['y'] == 0:
+            if self.state[agent]['y'] == 0 or self.state['map'][self.state[agent]['y']-1][self.state[agent]['x']]!=0:
                 action_mask[2] = 0
-            if self.state[agent]['y'] == self.map_size[0]-1:
+            if self.state[agent]['y'] == self.map_size[0]-1 or self.state['map'][self.state[agent]['y']+1][self.state[agent]['x']]==-1:
                 action_mask[3] = 0
 
             action_masks[agent] = action_mask
@@ -355,7 +356,11 @@ class Spec_Ops_Env(ParallelEnv):
             rewards[i]=reward_s[i]+reward_t[i]
 
     def update_observations(self):
+        return {}
 
+    def render(self):
+        """Renders the environment."""
+        #CLI Rendering
         os.system('cls' if os.name == 'nt' else 'clear')
         for i in self.state['map']:
             for j in i:
@@ -365,42 +370,7 @@ class Spec_Ops_Env(ParallelEnv):
                     print('T', end='') if j == 1 else print('S', end='')
             print()
         print('------------------------------------\n\n\n')
-        return {}
 
-    def render(self):
-        """Renders the environment."""
-        # for i in self.state['map']:
-        #     print(i)
-        # return
-        # grid = np.full((10, 10), " ")
-        # # print("soldier coordinates:", [self.sol_x, self.sol_y])
-        # # print("terrorist coordinates:", [self.terr_x, self.terr_y])
-        # # print("terrorost angle:", self.terr_angle)
-        # grid[self.terr_y,self.terr_x] = "T"
-        # grid[self.sol_y,self.sol_x] = "S"
-        #
-        # # grid[self.escape_y, self.escape_x] = "E"
-        #
-        # print(grid)
-        #
-        # state = {
-        #     "m1":{
-        #         "species": "seal",
-        #         "pos":{"x":self.sol_x, "y":self.sol_y},
-        #         "angle":self.sol_angle,
-        #         "fov":self.soldier_fov,
-        #         "shoot_angle":self.shoot_angle,
-        #         "status": "alive"
-        #     },
-        #     "t1":{
-        #         "species": "terrorist",
-        #         "pos":{"x":self.terr_x,"y":self.terr_y},
-        #         "angle":self.terr_angle,
-        #         "fov":self.terr_fov,
-        #         "shoot_angle":self.shoot_angle,
-        #         "status": "alive"
-        #     },
-        # }
         self.viz.update(self.state, self.agents)
         time.sleep(0.01)
 

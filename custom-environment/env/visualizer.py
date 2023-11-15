@@ -47,9 +47,17 @@ class Visualizer():
         self.screen.fill(WHITE)
 
         #Draw the grid
+        w = int(self.screen_dim[0]/self.grid[0])
         for i in range(0, self.screen_dim[0], int(self.screen_dim[0]/self.grid[0])):
             pygame.draw.line(self.screen, BLACK, (i, 0), (i, self.screen_dim[0]))
             pygame.draw.line(self.screen, BLACK, (0, i), (self.screen_dim[0], i))
+
+        #Draw walls
+        for i in range(self.grid[0]):
+            for j in range(self.grid[1]):
+                print(i,j)
+                if state['map'][j][i] == -1:
+                    pygame.draw.rect(self.screen,BLACK,(w*i,w*j,w,w))
 
         # Draw the agents
         for agent in self.agents:
@@ -77,6 +85,9 @@ class Visualizer():
                 #print((0,20*reward['soldier'],20+55*reward['soldier']))
                 # pygame.draw.polygon(self.screen, (0,200*reward['soldier'],200+55*reward['soldier']), ((px+a*math.sin(pa),py+a*math.cos(pa)), (px+a*math.sin(math.pi/3-pa), py-a*math.cos(math.pi/3-pa)), (px-a*math.sin(2*math.pi/3-pa), py+a*math.cos(2*math.pi/3-pa))))
                 pygame.draw.polygon(self.screen, (0,0,255), ((px+a*math.sin(pa),py+a*math.cos(pa)), (px+a*math.sin(math.pi/3-pa), py-a*math.cos(math.pi/3-pa)), (px-a*math.sin(2*math.pi/3-pa), py+a*math.cos(2*math.pi/3-pa))))
+
+                pygame.draw.rect(self.screen,BLACK,(w*agent.x,w*agent.y,w,w))
+                
             elif('terrorist' in agent_name):
                 #print('terr')
                 a = 20

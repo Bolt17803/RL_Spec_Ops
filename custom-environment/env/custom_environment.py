@@ -65,7 +65,7 @@ class Spec_Ops_Env(ParallelEnv):
         self.agent_name_mapping = dict(
             zip(self.possible_agents, list(range(len(self.possible_agents))))
         )
-
+        print(agent_name_mapping)
         self.timestamp=None
 
         #initializing rendering screen
@@ -147,14 +147,14 @@ class Spec_Ops_Env(ParallelEnv):
         self.timestamp=0
 
         self.terr_x, self.terr_y, self.terr_angle = self.config.get('terr_x',-1), self.config.get('terr_y',-1), self.config.get('terr_angle', -1)  #Error handling for invalid inputs required!
-        self.terr_x=np.random.randint(0,9) if self.terr_x<0  #Randomly place the terrorist on the grid, facing an arbitrary angle
-        self.terr_y=np.random.randint(0,9) if self.terr_y<0
-        self.terr_angle=np.random.randint(0,359) if self.terr_angle<0
+        self.terr_x=np.random.randint(0,9) if self.terr_x<0 else self.terr_x #Randomly place the terrorist on the grid, facing an arbitrary angle
+        self.terr_y=np.random.randint(0,9) if self.terr_y<0 else self.terr_y
+        self.terr_angle=np.random.randint(0,359) if self.terr_angle<0 else self.terr_angle
 
         self.sol_x, self.sol_y, self.sol_angle = self.config.get('sol_x',-1), self.config.get('sol_y',-1), self.config.get('sol_angle', -1)
-        self.sol_x=np.random.randint(0,9) if self.sol_x<0  #Randomly place the soldier on the grid, facing an arbitrary angle
-        self.sol_y=np.random.randint(0,9) if self.sol_y<0
-        self.sol_angle=np.random.randint(0,359) if self.sol_angle<0
+        self.sol_x=np.random.randint(0,9) if self.sol_x<0 else self.terr_x #Randomly place the soldier on the grid, facing an arbitrary angle
+        self.sol_y=np.random.randint(0,9) if self.sol_y<0 else self.terr_y
+        self.sol_angle=np.random.randint(0,359) if self.sol_angle<0 else self.sol_angle
 
         infos = {a: {} for a in self.agents}
         self.observations = {agent: NONE for agent in self.agents}  #used by step() and observe()
@@ -368,7 +368,10 @@ class Spec_Ops_Env(ParallelEnv):
         terr_action=actions["terrorist"]
         sol_action=actions["soldier"]
 
-        #NOTE: Write logic for walls in both action failsafe and alsoi action masks
+        self.state[self.terr_x][self.terr_y] = 0
+        self.state[self.sol_x][self.sol_y] = 0
+
+        #NOTE: Write logic for walls and other agents in both action failsafe and also action masks
         if terr_action == 0 and self.terr_x > 0:
             self.terr_x -= 1 # left
         elif terr_action == 1 and self.terr_x < 9:
@@ -402,6 +405,9 @@ class Spec_Ops_Env(ParallelEnv):
             self.sol_angle -= 30 # rotate 30 degrees clockwise
             if self.sol_angle<0:
                 self.sol_angle=360+self.sol_angle
+
+        self.state[self.terr_x][self.terr_y] = 2
+        self.state[self.sol_x][self.sol_y] = 1
 
         #Generate Action masks
         terr_action_mask = np.ones(6, dtype=np.int8)

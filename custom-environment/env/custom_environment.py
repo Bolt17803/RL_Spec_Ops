@@ -50,17 +50,17 @@ class Spec_Ops_Env(ParallelEnv):
         #Initializing
         self.possible_agents=["terrorist_"+str(i) for i in range(self.config.get('num_terr',1))]
         self.possible_agents.extend(["soldier_"+str(i) for i in range(self.config.get('num_sol',1))])
-        self.shoot_angle = self.config.get('shoot_angle', 15)   #Common to all agentsagents
-
-        self.terr_x=None    #Change this to support multiple agents
-        self.terr_y=None
-        self.terr_angle=None
-        self.terr_fov = self.config.get('terr_fov', 30) #please keep <=179 so math works correctly!!!
-
-        self.sol_x=None
-        self.sol_y=None
-        self.sol_angle=None
-        self.soldier_fov = self.config.get('sol_fov', 30)  #please keep <=179 so math works correctly!!!
+        #self.shoot_angle = self.config.get('shoot_angle', 15)   #Common to all agentsagents
+        #
+        # self.terr_x=None    #Change this to support multiple agents
+        # self.terr_y=None
+        # self.terr_angle=None
+        # self.terr_fov = self.config.get('terr_fov', 30) #please keep <=179 so math works correctly!!!
+        #
+        # self.sol_x=None
+        # self.sol_y=None
+        # self.sol_angle=None
+        # self.soldier_fov = self.config.get('sol_fov', 30)  #please keep <=179 so math works correctly!!!
 
         self.agent_name_mapping = dict(
             zip(self.possible_agents, list(range(len(self.possible_agents))))
@@ -72,12 +72,8 @@ class Spec_Ops_Env(ParallelEnv):
         #initializing rendering screen
         self.render_mode = self.config.get('render_mode', 'ansi')    #Check clashing with render_mode variable
         self.map_size = self.config.get('map_size', MAP_SIZE)
-        self.viz = Visualizer(grid=self.map_size)
+        self.viz = Visualizer(grid=self.map_size, agents=self.possible_agents)
 
-        #Error Checking
-        if(self.soldier_fov >= 180 or self.terr_fov >= 180):
-            print("invalid fov angle, line 51,52 chusko bey")
-            exit()
 
     @functools.lru_cache(maxsize=None)
     def observation_space(self, agent):
@@ -113,16 +109,18 @@ class Spec_Ops_Env(ParallelEnv):
             self.state[agent]['x']=np.random.randint(0,9) if self.state[agent]['x']<0 else self.state[agent]['x'] #Randomly place the terrorist on the grid, facing an arbitrary angle
             self.state[agent]['y']=np.random.randint(0,9) if self.state[agent]['y']<0 else self.state[agent]['y']
             self.state[agent]['angle']=np.random.randint(0,359) if self.state[agent]['angle']<0 else self.state[agent]['angle']
+            self.state[agent]['fov']=self.config.get(agent,{'fov': 40})['fov']  #Should be <179 becoz of math!
+            self.state[agent]['shoot_angle']=self.config.get(agent,{'shooting_angle': 15})['shooting_angle']
+            self.state[agent]['hp'] = 100
+            print('stateu', self.state[agent])
+
+            #Error Checking
+            if(self.state[agent]['fov'] >= 180 or self.state[agent]['fov'] >= 180):
+                print("invalid fov angle agent ki icchav, chusko bey")
+                exit()
 
         infos = {a: {} for a in self.agents}    #Just a dummy, we are not using it for now
         self.observations = {agent: None for agent in self.agents}
-        for agent in self.agents:
-            self.state[agent] = {
-                'x': 0,
-                'y': 0,
-                'angle': 0,
-                'hp': 100,
-            }
 
         return self.observations, infos
 
@@ -360,40 +358,40 @@ class Spec_Ops_Env(ParallelEnv):
 
     def render(self):
         """Renders the environment."""
-        for i in self.state['map']:
-            print(i)
-        return
-        grid = np.full((10, 10), " ")
-        # print("soldier coordinates:", [self.sol_x, self.sol_y])
-        # print("terrorist coordinates:", [self.terr_x, self.terr_y])
-        # print("terrorost angle:", self.terr_angle)
-        grid[self.terr_y,self.terr_x] = "T"
-        grid[self.sol_y,self.sol_x] = "S"
-
-        # grid[self.escape_y, self.escape_x] = "E"
-
-        print(grid)
-
-        state = {
-            "m1":{
-                "species": "seal",
-                "pos":{"x":self.sol_x, "y":self.sol_y},
-                "angle":self.sol_angle,
-                "fov":self.soldier_fov,
-                "shoot_angle":self.shoot_angle,
-                "status": "alive"
-            },
-            "t1":{
-                "species": "terrorist",
-                "pos":{"x":self.terr_x,"y":self.terr_y},
-                "angle":self.terr_angle,
-                "fov":self.terr_fov,
-                "shoot_angle":self.shoot_angle,
-                "status": "alive"
-            },
-        }
-        #self.viz.update(state, rewards)
-        time.sleep(0.3)
+        # for i in self.state['map']:
+        #     print(i)
+        # return
+        # grid = np.full((10, 10), " ")
+        # # print("soldier coordinates:", [self.sol_x, self.sol_y])
+        # # print("terrorist coordinates:", [self.terr_x, self.terr_y])
+        # # print("terrorost angle:", self.terr_angle)
+        # grid[self.terr_y,self.terr_x] = "T"
+        # grid[self.sol_y,self.sol_x] = "S"
+        #
+        # # grid[self.escape_y, self.escape_x] = "E"
+        #
+        # print(grid)
+        #
+        # state = {
+        #     "m1":{
+        #         "species": "seal",
+        #         "pos":{"x":self.sol_x, "y":self.sol_y},
+        #         "angle":self.sol_angle,
+        #         "fov":self.soldier_fov,
+        #         "shoot_angle":self.shoot_angle,
+        #         "status": "alive"
+        #     },
+        #     "t1":{
+        #         "species": "terrorist",
+        #         "pos":{"x":self.terr_x,"y":self.terr_y},
+        #         "angle":self.terr_angle,
+        #         "fov":self.terr_fov,
+        #         "shoot_angle":self.shoot_angle,
+        #         "status": "alive"
+        #     },
+        # }
+        self.viz.update(self.state, self.agents)
+        time.sleep(0.01)
 
     def close(self):
         """

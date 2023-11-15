@@ -45,32 +45,32 @@ class Spec_Ops_Env(ParallelEnv):
         these attributes should not be changed after initialization
         '''
 
-        self.config = config or {}
+        self.config = config or {'empty':None}
 
         #Initializing
-        self.possible_agents=["terrorist_"+str(i) for i in range(config.get('num_terr',1))]
-        self.possible_agents.extend(["soldier_"+str(i) for i in range(config.get('num_sol',1))])
-        self.shoot_angle = config.get('shoot_angle', 15)   #Common to all agentsagents
+        self.possible_agents=["terrorist_"+str(i) for i in range(self.config.get('num_terr',1))]
+        self.possible_agents.extend(["soldier_"+str(i) for i in range(self.config.get('num_sol',1))])
+        self.shoot_angle = self.config.get('shoot_angle', 15)   #Common to all agentsagents
 
         self.terr_x=None    #Change this to support multiple agents
         self.terr_y=None
         self.terr_angle=None
-        self.terr_fov = config.get('terr_fov', 30) #please keep <=179 so math works correctly!!!
+        self.terr_fov = self.config.get('terr_fov', 30) #please keep <=179 so math works correctly!!!
 
         self.sol_x=None
         self.sol_y=None
         self.sol_angle=None
-        self.soldier_fov = config.get('sol_fov', 30)  #please keep <=179 so math works correctly!!!
+        self.soldier_fov = self.config.get('sol_fov', 30)  #please keep <=179 so math works correctly!!!
 
         self.agent_name_mapping = dict(
             zip(self.possible_agents, list(range(len(self.possible_agents))))
         )
-        print(agent_name_mapping)
+        print(self.agent_name_mapping, "::::::")
         self.timestamp=None
 
         #initializing rendering screen
-        self.render_mode = config.get('render_mode', 'ansi')    #Check clashing with render_mode variable
-        self.map_size = config.get('map_size', MAP_SIZE)
+        self.render_mode = self.config.get('render_mode', 'ansi')    #Check clashing with render_mode variable
+        self.map_size = self.config.get('map_size', MAP_SIZE)
         self.viz = Visualizer(grid=self.map_size)
 
         #Error Checking
@@ -157,7 +157,7 @@ class Spec_Ops_Env(ParallelEnv):
         self.sol_angle=np.random.randint(0,359) if self.sol_angle<0 else self.sol_angle
 
         infos = {a: {} for a in self.agents}
-        self.observations = {agent: NONE for agent in self.agents}  #used by step() and observe()
+        observations = {agent: None for agent in self.agents}  #used by step() and observe()
         # self.observations = {
         #     a: (
         #         [self.terr_x, self.terr_y],
@@ -335,6 +335,7 @@ class Spec_Ops_Env(ParallelEnv):
                     reward_s={"soldier":-1, "terrorist":2}
 
         for i in rewards.keys():
+            print(i)
             rewards[i]=reward_s[i]+reward_t[i]
 
         truncations = {a: False for a in self.agents}
@@ -368,8 +369,8 @@ class Spec_Ops_Env(ParallelEnv):
 
     def move(self, actions):
 
-        terr_action=actions["terrorist"]
-        sol_action=actions["soldier"]
+        terr_action=actions["terrorist_0"]
+        sol_action=actions["soldier_0"]
 
         self.state[self.terr_x][self.terr_y] = 0
         self.state[self.sol_x][self.sol_y] = 0
@@ -409,8 +410,8 @@ class Spec_Ops_Env(ParallelEnv):
             if self.sol_angle<0:
                 self.sol_angle=360+self.sol_angle
 
-        self.state[self.terr_x][self.terr_y] = 2
-        self.state[self.sol_x][self.sol_y] = 1
+        self.state[self.terr_x][self.terr_y] = 2 # terroristis reprsented with number 2
+        self.state[self.sol_x][self.sol_y] = 1 # soldier is represented with number 1
 
         #Generate Action masks
         terr_action_mask = np.ones(6, dtype=np.int8)

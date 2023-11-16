@@ -55,8 +55,26 @@ class Visualizer():
                     state['soldier_player']['y'] -= 1
                 if event.key == pygame.K_DOWN:
                     state['soldier_player']['y'] += 1
-                is_visible.clear()
-                custom_fov_algo.compute_fov((state['soldier_player']['x'],state['soldier_player']['y']), is_blocking, reveal)
+                if event.key == pygame.K_a:
+                    state['soldier_player']['angle'] += 10
+                    if(state['soldier_player']['angle']>360):
+                        state['soldier_player']['angle'] -= 360
+                if event.key == pygame.K_d:
+                    state['soldier_player']['angle'] -= 10
+                    if(state['soldier_player']['angle']<0):
+                        state['soldier_player']['angle'] += 360
+                if event.key == pygame.K_q:
+                    state['soldier_player']['angle'] += 5
+                    if(state['soldier_player']['angle']>360):
+                        state['soldier_player']['angle'] -= 360
+                if event.key == pygame.K_e:
+                    state['soldier_player']['angle'] -= 5
+                    if(state['soldier_player']['angle']<0):
+                        state['soldier_player']['angle'] += 5
+
+                #is_visible.clear()
+                custom_fov_algo.compute_fov((state['soldier_player']['x'],state['soldier_player']['y']), state['soldier_player']['angle'], state['soldier_player']['fov'], is_blocking, reveal)
+
 
         #Draw white background
         self.screen.fill(WHITE)
@@ -72,7 +90,7 @@ class Visualizer():
             for j in range(self.grid[1]):
                 if (i,j) in is_visible:
                     pygame.draw.rect(self.screen,YELLOW,(w*i,w*j,w,w))
-                if state['map'][j][i] == -1:
+                if state['map'][j][i] == -1 and (i,j) in is_visible:
                     pygame.draw.rect(self.screen,BLACK,(w*i,w*j,w,w))
 
         # Draw the agents
@@ -95,8 +113,14 @@ class Visualizer():
                 shoot_angle=(agent.shoot_angle)*(math.pi/180)
                 pygame.draw.line(self.screen,BLACK,(px,py),(px+signx*l*math.cos(pa+fov/2), py+signy*l*math.sin(pa+fov/2)))
                 pygame.draw.line(self.screen,BLACK,(px,py),(px+signx*l*math.cos(pa-fov/2), py+signy*l*math.sin(pa-fov/2)))
-                pygame.draw.line(self.screen,RED,(px,py),(px+signx*l*math.cos(pa+shoot_angle/2), py+signy*l*math.sin(pa+shoot_angle/2)))
-                pygame.draw.line(self.screen,RED,(px,py),(px+signx*l*math.cos(pa-shoot_angle/2), py+signy*l*math.sin(pa-shoot_angle/2)))
+                # pygame.draw.line(self.screen,RED,(px,py),(px+signx*l*math.cos(pa+shoot_angle/2), py+signy*l*math.sin(pa+shoot_angle/2)))
+                # pygame.draw.line(self.screen,RED,(px,py),(px+signx*l*math.cos(pa-shoot_angle/2), py+signy*l*math.sin(pa-shoot_angle/2)))
+
+
+                pygame.draw.line(self.screen,RED,(px,py),(px+signx*l*math.cos(math.pi/4), py+signy*l*math.sin(math.pi/4)))
+                pygame.draw.line(self.screen,RED,(px,py),(px+signx*l*math.cos(3*math.pi/4), py+signy*l*math.sin(3*math.pi/4)))
+                pygame.draw.line(self.screen,RED,(px,py),(px+signx*l*math.cos(5*math.pi/4), py+signy*l*math.sin(5*math.pi/4)))
+                pygame.draw.line(self.screen,RED,(px,py),(px+signx*l*math.cos(7*math.pi/4), py+signy*l*math.sin(7*math.pi/4)))
                 pa += math.pi/2
                 #print((0,20*reward['soldier'],20+55*reward['soldier']))
                 # pygame.draw.polygon(self.screen, (0,200*reward['soldier'],200+55*reward['soldier']), ((px+a*math.sin(pa),py+a*math.cos(pa)), (px+a*math.sin(math.pi/3-pa), py-a*math.cos(math.pi/3-pa)), (px-a*math.sin(2*math.pi/3-pa), py+a*math.cos(2*math.pi/3-pa))))
@@ -133,8 +157,9 @@ class Visualizer():
 
 import custom_fov_algo
 
-state = {'map':map.read_map_file('Maps/map_0.txt')} 
-
+#state = {'map': [[0]*80]*80}
+state = {'map':map.read_map_file('Maps/map_0.txt')}
+#true_map = map.read_map_file('Maps/map_0.txt')
 state['soldier_player'] = {
     "x":40,
     "y":20,
@@ -143,11 +168,18 @@ state['soldier_player'] = {
     "fov":90
 }
 
+state['terrorist_player'] = {
+    "x":40,
+    "y":40,
+    "angle":125,
+    "shoot_angle":120,
+    "fov":120
+}
+
 def is_blocking(x, y):
     if((x<0) or (x>=80) or (y<0) or (y>=80)):
       return True
     elif((state['map'][y][x] != 0)):
-      print(x,y,'block')
       return True
     return False
 
@@ -170,11 +202,11 @@ if __name__ == '__main__':
         print()
     print('------------------------------------\n\n\n')
     
-    agents = ['soldier_player']
+    agents = ['soldier_player', 'terrorist_player']
+    state['map'][state['terrorist_player']['y']][state['terrorist_player']['x']] = -1
     viz = Visualizer(grid=(80,80), agents=agents)
-    custom_fov_algo.compute_fov((state['soldier_player']['x'],state['soldier_player']['y']), is_blocking, reveal)
-    
+    custom_fov_algo.compute_fov((state['soldier_player']['x'],state['soldier_player']['y']), state['soldier_player']['angle'], state['soldier_player']['fov'], is_blocking, reveal)
+
     while(True):
       viz.update(state, agents)
 
-      state['soldier_player']['angle']+=0.1

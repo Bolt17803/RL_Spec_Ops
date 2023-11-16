@@ -1,53 +1,120 @@
 import math
 from fractions import Fraction
 
-def compute_fov(origin, is_blocking, mark_visible):
-
+def compute_fov(origin, angle, fov, is_blocking, mark_visible):
     mark_visible(*origin)
 
-    for i in range(4):
-        quadrant = Quadrant(i, origin)
+    #determine both rays in fov
+    ls = angle+fov/2.0
+    rs = angle-fov/2.0
+    if(ls>360): ls -= 360
+    if(rs<0):   rs += 360
 
-        def reveal(tile):
-            x, y = quadrant.transform(tile)
-            mark_visible(x, y)
+    q = []
 
-        def is_wall(tile):
-            if tile is None:
-                return False
-            x, y = quadrant.transform(tile)
-            return is_blocking(x, y)
+    start_slope = 0
+    if(ls>45 and ls<=135):
+        start_slope = math.tan(math.radians(90-ls))
+        q.append(0)
+    elif(ls>135 and ls<=225):
+        start_slope = math.tan(math.radians(180-ls))
+        q.append(1)
+    elif(ls>225 and ls<=315):
+        start_slope = math.tan(math.radians(270-ls))
+        q.append(2)
+    elif(ls>315 or ls<=45):
+        start_slope = math.tan(math.radians(360-ls))
+        q.append(3)
 
-        def is_floor(tile):
-            if tile is None:
-                return False
-            x, y = quadrant.transform(tile)
-            return not is_blocking(x, y)
+    end_slope = 0
+    if(rs>=45 and rs<135):
+        end_slope = math.tan(math.radians(90-rs))
+        q.append(0)
+    elif(rs>=135 and rs<225):
+        end_slope = math.tan(math.radians(180-rs))
+        q.append(1)
+    elif(rs>=225 and rs<315):
+        end_slope = math.tan(math.radians(270-rs))
+        q.append(2)
+    elif(rs>=315 or rs<45):
+        end_slope = math.tan(math.radians(360-rs))
+        q.append(3)
 
-        def scan(row):
-            prev_tile = None
-            for tile in row.tiles():
-                if is_wall(tile) or is_symmetric(row, tile):
-                    reveal(tile)
-                if is_wall(prev_tile) and is_floor(tile):
-                    row.start_slope = slope(tile)
-                if is_floor(prev_tile) and is_wall(tile):
-                    next_row = row.next()
-                    next_row.end_slope = slope(tile)
-                    scan(next_row)
-                prev_tile = tile
-            if is_floor(prev_tile):
-                scan(row.next())
+    print('a',q)
+    # #determine quadrants to be searched and also
+    # q = []
+    # if( (rs>=45 and rs<135) or (ls>45 and ls<=135) or ((rs<=45 and rs>=315) and (ls>=135 or ls<=225) )): q.append(0)
+    # if( (rs>=135 and rs<225) or (ls>135 and ls<=225) or (rs<=135 and ls>=225 and ls>=rs) ):    q.append(1)
+    # if( (rs>=225 and rs<315) or (ls>225 and ls<=315) or ((rs<=225 and rs>=135) and (ls>=315 or ls<=45)) ):   q.append(2)
+    # if( (rs>=315 or rs<45) or (ls>315 or ls<=45) or ((rs<=315 and ls>=45 and rs>=ls) )):  q.append(3)
+    # print(angle,fov,q)
 
-        first_row = Row(1, Fraction(-1), Fraction(1))
+    #Utility functions
+    def reveal(tile):
+        x, y = quadrant.transform(tile)
+        mark_visible(x, y)
+
+    def is_wall(tile):
+        if tile is None:
+            return False
+        x, y = quadrant.transform(tile)
+        return is_blocking(x, y)
+
+    def is_floor(tile):
+        if tile is None:
+            return False
+        x, y = quadrant.transform(tile)
+        return not is_blocking(x, y)
+
+    def scan(row):
+        prev_tile = None
+        for tile in row.tiles():
+            if is_wall(tile) or is_symmetric(row, tile):
+                reveal(tile)
+            if is_wall(prev_tile) and is_floor(tile):
+                row.start_slope = slope(tile)
+            if is_floor(prev_tile) and is_wall(tile):
+                next_row = row.next()
+                next_row.end_slope = slope(tile)
+                scan(next_row)
+            prev_tile = tile
+        if is_floor(prev_tile):
+            scan(row.next())
+
+    if(len(q)==1):
+        quadrant = Quadrant(q[0], origin)
+        first_row = Row(1, start_slope, end_slope)
         scan(first_row)
+    else:
+        if(q[0] == 1 or q[0] == 2):
+            quadrant = Quadrant(q[0], origin)
+            first_row = Row(1, Fraction(-1), -start_slope)
+            print('ls:',q[0],start_slope,Fraction(1))
+            scan(first_row)
+        else:
+            quadrant = Quadrant(q[0], origin)
+            first_row = Row(1, start_slope, Fraction(1))
+            print('ls:',q[0],start_slope,Fraction(1))
+            scan(first_row)
+
+
+        if(q[1] == 1 or q[1] == 2):
+            quadrant = Quadrant(q[1], origin)
+            first_row = Row(1, -end_slope, Fraction(1))
+            print('rs:',q[1],Fraction(-1), end_slope)
+            scan(first_row)
+        else:
+            quadrant = Quadrant(q[1], origin)
+            first_row = Row(1, Fraction(-1), end_slope)
+            print('rs:',q[1],Fraction(-1), end_slope)
+            scan(first_row)
 
 class Quadrant:
 
     north = 0
-    east  = 1
+    west  = 1
     south = 2
-    west  = 3
+    east  = 3
 
     def __init__(self, cardinal, origin):
         self.cardinal = cardinal
@@ -65,7 +132,6 @@ class Quadrant:
             return (self.ox - row, self.oy + col)
 
 class Row:
-
     def __init__(self, depth, start_slope, end_slope):
         self.depth = depth
         self.start_slope = start_slope

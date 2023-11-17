@@ -375,7 +375,7 @@ class Spec_Ops_Env(ParallelEnv):
                 if x>=0 and y>=0 and x<=self.map_size[1] and y<self.map_size[0]:
                     is_visible.add((x, y))
             # du=self.state
-            obs_map=self.state['map']
+            obs_map=self.state['map'].copy()
             custom_fov_algo.compute_fov((self.state[agent]['x'],self.state[agent]['y']), self.state[agent]['angle'], self.state[agent]['fov'], is_blocking, reveal)
             # print(is_visible)
             for i in range(obs_map.shape[0]):

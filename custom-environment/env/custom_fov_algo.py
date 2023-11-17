@@ -40,7 +40,6 @@ def compute_fov(origin, angle, fov, is_blocking, mark_visible):
         end_slope = math.tan(math.radians(360-rs))
         q.append(3)
 
-    print('a',q)
     # #determine quadrants to be searched and also
     # q = []
     # if( (rs>=45 and rs<135) or (ls>45 and ls<=135) or ((rs<=45 and rs>=315) and (ls>=135 or ls<=225) )): q.append(0)
@@ -89,24 +88,20 @@ def compute_fov(origin, angle, fov, is_blocking, mark_visible):
         if(q[0] == 1 or q[0] == 2):
             quadrant = Quadrant(q[0], origin)
             first_row = Row(1, Fraction(-1), -start_slope)
-            print('ls:',q[0],start_slope,Fraction(1))
             scan(first_row)
         else:
             quadrant = Quadrant(q[0], origin)
             first_row = Row(1, start_slope, Fraction(1))
-            print('ls:',q[0],start_slope,Fraction(1))
             scan(first_row)
 
 
         if(q[1] == 1 or q[1] == 2):
             quadrant = Quadrant(q[1], origin)
             first_row = Row(1, -end_slope, Fraction(1))
-            print('rs:',q[1],Fraction(-1), end_slope)
             scan(first_row)
         else:
             quadrant = Quadrant(q[1], origin)
             first_row = Row(1, Fraction(-1), end_slope)
-            print('rs:',q[1],Fraction(-1), end_slope)
             scan(first_row)
 
 class Quadrant:

@@ -73,6 +73,8 @@ class Visualizer():
                         state['soldier_player']['angle'] += 5
 
                 #is_visible.clear()
+                for i in is_visible:
+                    print(i)
                 custom_fov_algo.compute_fov((state['soldier_player']['x'],state['soldier_player']['y']), state['soldier_player']['angle'], state['soldier_player']['fov'], is_blocking, reveal)
 
 
@@ -89,7 +91,8 @@ class Visualizer():
         for i in range(self.grid[0]):
             for j in range(self.grid[1]):
                 if (i,j) in is_visible:
-                    pygame.draw.rect(self.screen,YELLOW,(w*i,w*j,w,w))
+                    pass
+                    #pygame.draw.rect(self.screen,YELLOW,(w*i,w*j,w,w))
                 if state['map'][j][i] == -1 and (i,j) in is_visible:
                     pygame.draw.rect(self.screen,BLACK,(w*i,w*j,w,w))
 
@@ -201,12 +204,10 @@ if __name__ == '__main__':
                 print(j, end='') 
         print()
     print('------------------------------------\n\n\n')
-    
     agents = ['soldier_player', 'terrorist_player']
-    state['map'][state['terrorist_player']['y']][state['terrorist_player']['x']] = -1
+    state['map'][state['terrorist_player']['y']][state['terrorist_player']['x']] = -1  # represent that terrorist is "-1"
     viz = Visualizer(grid=(80,80), agents=agents)
     custom_fov_algo.compute_fov((state['soldier_player']['x'],state['soldier_player']['y']), state['soldier_player']['angle'], state['soldier_player']['fov'], is_blocking, reveal)
-
     while(True):
       viz.update(state, agents)
 

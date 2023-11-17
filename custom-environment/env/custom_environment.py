@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import time
 import os
 import map
-
+import custom_fov_algo
 import gymnasium
 import gymnasium.spaces
 from gymnasium.spaces import Discrete, MultiDiscrete
@@ -67,6 +67,7 @@ class Spec_Ops_Env(ParallelEnv):
         self.agent_name_mapping = dict(
             zip(self.possible_agents, list(range(1,len(self.possible_agents)+1)))
         )
+        # print(self.agent_name_mapping)
 
         self.timestamp=None
         self.max_timestamp = self.config.get('max_timestamp', 420)
@@ -80,7 +81,7 @@ class Spec_Ops_Env(ParallelEnv):
     @functools.lru_cache(maxsize=None)
     def observation_space(self, agent):
         # gymnasium spaces are defined and documented here: https://gymnasium.farama.org/api/spaces/
-        return MultiDiscrete([10 * 10] * 3) #Change this
+        return MultiDiscrete([5]*100) #Change this
 
     @functools.lru_cache(maxsize=None)
     def action_space(self, agent):
@@ -104,6 +105,7 @@ class Spec_Ops_Env(ParallelEnv):
         self.timestamp=0
 
         self.state = {'map':map.read_map_file('Maps/map_0.txt')} #{"map": np.zeros((self.config.get('map_size', MAP_SIZE)))}
+        # in state terrorist is given 1 and soldier given as 2 when there are two agents
         for agent in self.agents:
             #VVIP NOTE: Handling for invalid inputs/Initialization required!
             self.state[agent] = {}
@@ -114,14 +116,14 @@ class Spec_Ops_Env(ParallelEnv):
             self.state[agent]['fov']=self.config.get(agent,{'fov': 40})['fov']  #Should be <179 becoz of math!
             self.state[agent]['shoot_angle']=self.config.get(agent,{'shooting_angle': 15})['shooting_angle']
             self.state[agent]['hp'] = 100
-            self.state['map'][self.state[agent]['y']][self.state[agent]['x']] = self.agent_name_mapping[agent]
+            self.state['map'][self.state[agent]['y']][self.state[agent]['x']] = self.agent_name_mapping[agent] # updating the location oof soldier and terrorist in state map
 
             #Error Checking
             if(self.state[agent]['fov'] >= 180 or self.state[agent]['fov'] >= 180):
                 print("invalid fov angle agent ki icchav, chusko bey")
                 exit()
         self.render()
-        print(self.state)
+        # print(self.state)
         #time.sleep(10)
         infos = {a: {} for a in self.agents}    #Just a dummy, we are not using it for now
         self.observations = {agent: None for agent in self.agents}
@@ -167,7 +169,7 @@ class Spec_Ops_Env(ParallelEnv):
         self.timestamp += 1
 
         # Get observations for each agent
-        observations = self.update_observations()
+        self.observations = self.update_observations()
         # Get dummy infos (not used for now)
         infos = {a: {} for a in self.agents}
 
@@ -177,7 +179,7 @@ class Spec_Ops_Env(ParallelEnv):
         if self.render_mode != None:
             self.render()
 
-        return observations, rewards, terminations, truncations, infos
+        return self.observations, rewards, terminations, truncations, infos
 
     def move(self, actions):
         action_masks = {}
@@ -223,7 +225,10 @@ class Spec_Ops_Env(ParallelEnv):
     def get_rewards(self, rewards=None):
         rewards = rewards or {a: 0 for a in self.agents}
         return rewards
-         #Calculate the rewards and punishments
+        #Calculate the rewards and punishments
+
+
+
         angle_soldier = angle_from_agent(self.terr_x, self.terr_y, self.sol_x, self.sol_y)
         # right most angles
         ss1 = self.terr_angle-self.shoot_angle/2
@@ -356,23 +361,51 @@ class Spec_Ops_Env(ParallelEnv):
             rewards[i]=reward_s[i]+reward_t[i]
 
     def update_observations(self):
-        return {}
+        # -1 for wall, 1 for terrorist, 2 for soldier, 0 for empty space, 3 for unknown region
+        obs={}
+        def is_blocking(x, y):
+            if((x<0) or (x>=80) or (y<0) or (y>=80)):
+                return True
+            elif((self.state['map'][y][x] != 0)):
+                return True
+            return False
+        for agent in self.agents:
+            is_visible = set()
+            def reveal(x, y):
+                if x>=0 and y>=0 and x<=self.map_size[1] and y<self.map_size[0]:
+                    is_visible.add((x, y))
+            # du=self.state
+            obs_map=self.state['map']
+            custom_fov_algo.compute_fov((self.state[agent]['x'],self.state[agent]['y']), self.state[agent]['angle'], self.state[agent]['fov'], is_blocking, reveal)
+            # print(is_visible)
+            for i in range(obs_map.shape[0]):
+                for j in range(obs_map.shape[1]):
+                    # print("cord:",i,j)
+                    if((j,i) in is_visible):
+                        pass
+                    else:
+                        obs_map[i][j]=3
+            # print(dup_state)
+            obs[agent]=obs_map.flatten()
+
+        return obs
 
     def render(self):
         """Renders the environment."""
         #CLI Rendering
-        os.system('cls' if os.name == 'nt' else 'clear')
-        for i in self.state['map']:
-            for j in i:
-                if(j==0):
-                    print('.', end='')
-                else:
-                    print('T', end='') if j == 1 else print('S', end='')
-            print()
-        print('------------------------------------\n\n\n')
+        #os.system('cls' if os.name == 'nt' else 'clear')
+        # print(type(self.state))
+        # for i in self.state['map']:
+        #     for j in i:
+        #         if(j==0):
+        #             print('.', end='')
+        #         else:
+        #             print('T', end='') if j == 1 else print('S', end='')
+        #     print()
+        # print('------------------------------------\n\n\n')
 
         self.viz.update(self.state, self.agents)
-        time.sleep(0.01)
+        time.sleep(0.1)
 
     def close(self):
         """
@@ -394,8 +427,13 @@ if __name__ == '__main__':
         #print(actions)
         observations, rewards, terminations, truncations, infos = env.step(actions)
         env.render()
-        #print("observations:", observations)
+
+        # for i in observations['terrorist_0']:
+        print("terr:", np.unique(observations['terrorist_0']))
+        print("sol:", np.unique(observations['soldier_0']))
+        # print("observations:", observations['terrorist_0'])
         #print("rewards:", rewards)
         #print("----------------------------------------")
         # visualize_environment(env, observations)
+        # break
     env.close()

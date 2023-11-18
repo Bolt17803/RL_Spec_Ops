@@ -19,7 +19,11 @@ def policy_map_fn(agent_id: str, _episode=None, _worker=None, **_kwargs) -> str:
     else:
         raise RuntimeError(f'Invalid agent_id: {agent_id}')
     
-config = PPO.get_default_config()
+config = {
+    "env": 'custom_environment_v0',
+    "framework": "torch",
+    "observation_space": Spec_Ops_Env.observation_space
+}
 # config.update(
 #     {
 #     # The batch size collected for each worker

@@ -1,54 +1,77 @@
+
+from ray.rllib.policy.policy import PolicySpec
 from custom_environment import Spec_Ops_Env
-# from tutorial3_action_masking import CustomActionMaskedEnvironment
-import supersuit as ss
-import time
-from stable_baselines3 import PPO
-from stable_baselines3.ppo import CnnPolicy, MlpPolicy
-from pettingzoo.test import parallel_api_test
+from gym import spaces
+from typing import Dict
+import ray
+from ray import tune
+# from trainer import Trainer
+from ray.rllib.algorithms.ppo import PPO
 
-def train(env_fn, steps: int = 10_000, seed: int | None = 0, **env_kwargs):
-    # Train a single model to play as each agent in an AEC environment
-    env = env_fn.parallel_env(**env_kwargs)
+def policy_map_fn(agent_id: str, _episode=None, _worker=None, **_kwargs) -> str:
+    """
+    Maps agent_id to policy_id
+    """
+    if 'soldier' in agent_id:
+        return 'soldier_policy'
+    elif 'terrorist' in agent_id:
+        return 'terrorist_policy'
+    else:
+        raise RuntimeError(f'Invalid agent_id: {agent_id}')
+    
+config = PPO.get_default_config()
+# config.update(
+#     {
+#     # The batch size collected for each worker
+#     "rollout_fragment_length": 1000,
+#     # Can be "complete_episodes" or "truncate_episodes"
+#     "batch_mode": "complete_episodes",
+#     "simple_optimizer": True,
+#     "framework": "torch",
+#     })
+def get_multiagent_policies() -> Dict[str,PolicySpec]:
+    policies: Dict[str,PolicySpec] = {}  # policy_id to policy_spec
 
-    # Add black death wrapper so the number of agents stays constant
-    # MarkovVectorEnv does not support environments with varying numbers of active agents unless black_death is set to True
-    env = ss.black_death_v3(env)
-
-    # Pre-process using SuperSuit
-    visual_observation = not env.unwrapped.vector_state
-    if visual_observation:
-        # If the observation space is visual, reduce the color channels, resize from 512px to 84px, and apply frame stacking
-        env = ss.color_reduction_v0(env, mode="B")
-        env = ss.resize_v1(env, x_size=84, y_size=84)
-        env = ss.frame_stack_v1(env, 3)
-
-    env.reset(seed=seed)
-
-    print(f"Starting training on {str(env.metadata['name'])}.")
-
-    env = ss.pettingzoo_env_to_vec_env_v1(env)
-    env = ss.concat_vec_envs_v1(env, 8, num_cpus=1, base_class="stable_baselines3")
-
-    # Use a CNN policy if the observation space is visual
-    model = PPO(
-        CnnPolicy if visual_observation else MlpPolicy,
-        env,
-        verbose=3,
-        batch_size=256,
+    policies['soldier_policy'] = PolicySpec(
+                policy_class=None, # use default in trainer, or could be YourHighLevelPolicy
+                observation_space=Spec_Ops_Env.observation_space['soldier_0'],
+                action_space=spaces.Discrete(6),
+                config={}
     )
 
-    model.learn(total_timesteps=steps)
+    policies['terrorist_policy'] = PolicySpec(
+        policy_class=None,  # use default in trainer, or could be YourLowLevelPolicy
+        observation_space=Spec_Ops_Env.observation_space['terrorist_0'],
+        action_space=spaces.Discrete(6),
+        config={}
+    )
 
-    model.save(f"{env.unwrapped.metadata.get('name')}_{time.strftime('%Y%m%d-%H%M%S')}")
+    return policies
+if __name__=="__main__":
+    ray.init(local_mode=True)  # in local mode you can debug it
 
-    print("Model has been saved.")
+    RUN_WITH_TUNE = True
+    NUM_ITERATIONS = 500  # 500 results in Tensorboard shown with 500 iterations (about an hour)
 
-    print(f"Finished training on {str(env.unwrapped.metadata['name'])}.")
+    # Tune is the system for keeping track of all of the running jobs, originally for
+    # hyperparameter tuning
+    if RUN_WITH_TUNE:
 
-    env.close()
+        tune.registry.register_trainable("YourTrainer", PPO)
+        stop = {
+                "training_iteration": NUM_ITERATIONS  # Each iteration is some number of episodes
+            }
+        results = tune.run("YourTrainer", stop=stop, config=config, verbose=1, checkpoint_freq=10)
 
-if __name__ == "__main__":
-    env = Spec_Ops_Env()
-    # parallel_api_test(env, num_cycles=1_000_000)
+        # You can just do PPO or DQN but we wanted to show how to customize
+        #results = tune.run("PPO", stop=stop, config=config, verbose=1, checkpoint_freq=10)
 
-    train(env, steps=81_920, seed=0)
+    else:
+        from custom_environment import Spec_Ops_Env
+        trainer = PPO(config=config, env=Spec_Ops_Env)
+
+        # You can just do PPO or DQN but we wanted to show how to customize
+        #from ray.rllib.agents.ppo import PPOTrainer
+        #trainer = PPOTrainer(config, env=YourEnvironment)
+
+        trainer.train()

@@ -11,13 +11,14 @@ import custom_fov_algo
 import gymnasium
 import gymnasium.spaces
 from gymnasium.spaces import Discrete, MultiDiscrete
-
+from pettingzoo import AECEnv
+from gymnasium.utils import EzPickle
 from pettingzoo import AECEnv, ParallelEnv
 from pettingzoo.utils import parallel_to_aec
-from pettingzoo.utils import agent_selector, wrappers
 from pettingzoo.test import parallel_api_test
-from pettingzoo.test import render_test
-
+from pettingzoo.utils import agent_selector, wrappers
+from ray.rllib import MultiAgentEnv
+from pettingzoo.utils.conversions import parallel_wrapper_fn
 from visualizer import Visualizer
 
 #Default variables
@@ -37,7 +38,19 @@ def is_there(visible=None,corr_x=None,corr_y=None):
             return True
         else:
             return False
-        
+
+def env(**kwargs):
+    env = Spec_Ops_Env(**kwargs)
+    if env.continuous:
+        env = wrappers.ClipOutOfBoundsWrapper(env)
+    else:
+        env = wrappers.AssertOutOfBoundsWrapper(env)
+    env = wrappers.OrderEnforcingWrapper(env)
+    return env
+
+
+parallel_env = parallel_wrapper_fn(env)
+
 class Spec_Ops_Env(ParallelEnv):
     metadata={
         "name":"custom_environment_v0",
@@ -91,7 +104,7 @@ class Spec_Ops_Env(ParallelEnv):
     @functools.lru_cache(maxsize=None)
     def observation_space(self, agent):
         # gymnasium spaces are defined and documented here: https://gymnasium.farama.org/api/spaces/
-        return MultiDiscrete([5]*100) #Change this
+        return self.observations[agent] #Change this
 
     @functools.lru_cache(maxsize=None)
     def action_space(self, agent):
@@ -248,7 +261,7 @@ class Spec_Ops_Env(ParallelEnv):
                     if i.split("_")[0]=="soldier":
                         # print("soldier_corr:",( self.state[i]['x'], self.state[i]['y']))
                         # print("terr vis coor:",self.terr_visible)
-                        print(is_there(self.terr_visible,self.state[i]['x'],self.state[i]['y']))
+                        # print(is_there(self.terr_visible,self.state[i]['x'],self.state[i]['y']))
                         angle_soldier = angle_from_agent(self.state[agent]['x'], self.state[agent]['y'], self.state[i]['x'], self.state[i]['y'])
                         # right most angles
                         ss1 = self.state[agent]['angle']-self.state[agent]['shoot_angle']/2 #self.terr_angle-self.shoot_angle/2
@@ -323,10 +336,10 @@ class Spec_Ops_Env(ParallelEnv):
                         # ss1_ = ss1
                         # ss2_ = ss2
                         # angle_soldier_ = angle_soldier
-                        print("#############################################")
+                        # print("#############################################")
                         # print("terr_corr:",(self.state[i]['x'], self.state[i]['y']))
                         # print("sol vis coor:",self.sol_visible)
-                        print(is_there(self.sol_visible,self.state[i]['x'],self.state[i]['y']))
+                        # print(is_there(self.sol_visible,self.state[i]['x'],self.state[i]['y']))
                         angle_soldier = angle_from_agent(self.state[agent]['x'], self.state[agent]['y'], self.state[i]['x'], self.state[i]['y']) #angle_from_agent(self.sol_x, self.sol_y, self.terr_x, self.terr_y)
                         # right most angles
                         ss1 = self.state[agent]['angle']-self.state[agent]['shoot_angle']/2 #self.sol_angle-self.shoot_angle/2
@@ -381,11 +394,11 @@ class Spec_Ops_Env(ParallelEnv):
                                     reward_s={"soldier":2, "terrorist":-1}
                                 else:
                                     reward_s={"soldier":-1, "terrorist":2}
-        print('sr:',reward_s)
-        print('tr:',reward_t)
+        # print('sr:',reward_s)
+        # print('tr:',reward_t)
         for i in (rewards.keys()):
             rewards[i]=reward_s[i.split("_")[0]]+reward_t[i.split("_")[0]]
-        print('rew:',rewards)
+        # print('rew:',rewards)
         self.sol_visible.clear()
         self.terr_visible.clear()
         return rewards 
@@ -460,7 +473,7 @@ class Spec_Ops_Env(ParallelEnv):
         # print('------------------------------------\n\n\n')
 
         self.viz.update(self.state, self.agents)
-        time.sleep(0.1)
+        #time.sleep(0.0)
 
     def close(self):
         """
@@ -468,27 +481,28 @@ class Spec_Ops_Env(ParallelEnv):
         """
         self.viz.quit()
         pass
-
+from pettingzoo.test import api_test
 
 if __name__ == '__main__':
     env=Spec_Ops_Env()
+    # parallel_api_test(env, num_cycles=1000, verbose_progress=False)
+    parallel_api_test(env, num_cycles=1000)
+    # observations, infos = env.reset()
 
-    observations, infos = env.reset()
+    # while env.agents:
+    #     #print(env.agents)
+    #     # this is where you would insert your policy
+    #     actions = {agent: env.action_space(agent).sample() for agent in env.agents}
+    #     #print(actions)
+    #     observations, rewards, terminations, truncations, infos = env.step(actions)
+    #     env.render()
 
-    while env.agents:
-        #print(env.agents)
-        # this is where you would insert your policy
-        actions = {agent: env.action_space(agent).sample() for agent in env.agents}
-        #print(actions)
-        observations, rewards, terminations, truncations, infos = env.step(actions)
-        env.render()
-
-        # for i in observations['terrorist_0']:
-        # print("terr:", np.unique(observations['terrorist_0']))
-        # print("sol:", np.unique(observations['soldier_0']))
-        # print("observations:", observations['terrorist_0'])
-        #print("rewards:", rewards)
-        #print("----------------------------------------")
-        # visualize_environment(env, observations)
-        # break
-    env.close()
+    #     # for i in observations['terrorist_0']:
+    #     # print("terr:", np.unique(observations['terrorist_0']))
+    #     # print("sol:", np.unique(observations['soldier_0']))
+    #     # print("observations:", observations['terrorist_0'])
+    #     #print("rewards:", rewards)
+    #     #print("----------------------------------------")
+    #     # visualize_environment(env, observations)
+    #     # break
+    # env.close()

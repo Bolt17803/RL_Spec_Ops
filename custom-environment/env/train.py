@@ -149,7 +149,7 @@ if __name__ == "__main__":
     register_env(env_name, lambda config: ParallelPettingZooEnv(env_creator(config)))
     ModelCatalog.register_custom_model("CNNModelV2", CNNModelV2)
 
-
+env=env_creator()
 config = (
         PPOConfig()
         .environment(env="123", clip_actions=True)
@@ -167,6 +167,10 @@ config = (
             sgd_minibatch_size=64,
             num_sgd_iter=10,
         )
+        .multi_agent(
+            policies=env.get_agent_ids(),
+            policy_mapping_fn=(lambda agent_id, *args, **kwargs: agent_id),
+        )
         .debugging(log_level="ERROR")
         .framework(framework="torch")
         .resources(num_gpus=int(os.environ.get("RLLIB_NUM_GPUS", "0")))
@@ -174,15 +178,14 @@ config = (
 
 
 # Get the user's home directory
-user_home = os.path.expanduser("~")
+user_home = os.path.expanduser("~/RL_Spec_Ops_logs")
+
 
 # Specify the Downloads directory within the user's home directory
-downloads_dir = os.path.join(user_home, "Downloads")
-downloads_dir = os.path.join(user_home, "vamsi1")
-downloads_dir = os.path.join(user_home, "vamsi")
+#downloads_dir = os.path.join(user_home, "Downloads")
 # Use the downloads directory as the local_dir
-downloads_dir = os.path.join(user_home, "1")
-local_dir = downloads_dir
+# downloads_dir = os.path.join(user_home, "1")
+local_dir = user_home
 
 print(local_dir)
 
@@ -191,6 +194,6 @@ tune.run(
         name="PPO",
         stop={"timesteps_total": 5000000},
         checkpoint_freq=10,
-        local_dir=downloads_dir,
+        local_dir=local_dir,
         config=config.to_dict(),
     )

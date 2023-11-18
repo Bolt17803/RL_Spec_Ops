@@ -73,8 +73,9 @@ class Spec_Ops_Env(ParallelEnv):
         self.possible_agents=["terrorist_"+str(i) for i in range(self.config.get('num_terr',1))]
         self.possible_agents.extend(["soldier_"+str(i) for i in range(self.config.get('num_sol',1))])
 
-        self.observation_spaces=dict(zip(self.possible_agents, MultiDiscrete([6400]*5)*2))
-        self.action_space=dict(zip(self.possible_agents, Discrete(6)))
+        self.observation_spaces=dict(zip(self.possible_agents, [MultiDiscrete([10]*6400)]*2))
+        self.action_spaces=dict(zip(self.possible_agents, [Discrete(6)]*2))
+
         self.sol_visible=set() # currently visible coordinates
         self.s_visible=set() # all the previous memory
         self.terr_visible=set()  # currently visible coordinates
@@ -124,7 +125,7 @@ class Spec_Ops_Env(ParallelEnv):
         for agent in self.agents:
             #VVIP NOTE: Handling for invalid inputs/Initialization required!
             self.state[agent] = {}
-            self.state[agent]['x'], self.state[agent]['y'], self.state[agent]['angle'] = self.config.get(agent,{'x':-1})['x'], self.config.get(agent,{'y':-1})['y'], self.config.get(agent,{'angle':-1})['angle']
+            self.state[agent]['x'], self.state[agent]['y'], self.state[agent]['angle'] = self.config.get(agent,{'x':0})['x'], self.config.get(agent,{'y':0})['y'], self.config.get(agent,{'angle':0})['angle']
             self.state[agent]['x']=np.random.randint(0,self.map_size[1]) if self.state[agent]['x']<0 else self.state[agent]['x'] #Randomly place the terrorist on the grid, facing an arbitrary angle
             self.state[agent]['y']=np.random.randint(0,self.map_size[0]) if self.state[agent]['y']<0 else self.state[agent]['y']
             self.state[agent]['angle']=np.random.randint(0,359) if self.state[agent]['angle']<0 else self.state[agent]['angle']
@@ -141,8 +142,8 @@ class Spec_Ops_Env(ParallelEnv):
         # print(self.state)
         #time.sleep(10)
         infos = dict({a: {} for a in self.agents})    #Just a dummy, we are not using it for now
-        self.observations = self.observation_spaces
-
+        self.observations = self.update_observations()
+        
         return self.observations, infos
 
     def step(self, actions):
@@ -195,7 +196,7 @@ class Spec_Ops_Env(ParallelEnv):
         if self.render_mode != None:
             self.render()
 
-        return self.observations, rewards, self.terminations, truncations
+        return self.observations, rewards, self.terminations, truncations, infos
 
     def move(self, actions):
         action_masks = {}
@@ -207,11 +208,11 @@ class Spec_Ops_Env(ParallelEnv):
             #Move the agent along with failsafes
             if action == 0 and self.state[agent]['x'] > 0 and self.state['map'][self.state[agent]['y']][self.state[agent]['x']-1]==0:
                 self.state[agent]['x'] -= 1 # left
-            elif action == 1 and self.state[agent]['x'] < 9 and self.state['map'][self.state[agent]['y']][self.state[agent]['x']+1]==0:
+            elif action == 1 and self.state[agent]['x'] < (self.map_size[0]-1) and self.state['map'][self.state[agent]['y']][self.state[agent]['x']+1]==0:
                 self.state[agent]['x'] += 1 # right
             elif action == 2 and self.state[agent]['y'] > 0 and self.state['map'][self.state[agent]['y']-1][self.state[agent]['x']]==0:
                 self.state[agent]['y'] -= 1 # top
-            elif action == 3 and self.state[agent]['y'] < 9 and self.state['map'][self.state[agent]['y']+1][self.state[agent]['x']]==0:
+            elif action == 3 and self.state[agent]['y'] < (self.map_size[1]-1) and self.state['map'][self.state[agent]['y']+1][self.state[agent]['x']]==0:
                 self.state[agent]['y'] += 1 # bottom
             elif action == 4 :
                 self.state[agent]['angle'] += 30 # rotate 30 degrees anti clockwise
@@ -232,7 +233,7 @@ class Spec_Ops_Env(ParallelEnv):
                 action_mask[1] = 0
             if self.state[agent]['y'] == 0 or self.state['map'][self.state[agent]['y']-1][self.state[agent]['x']]!=0:
                 action_mask[2] = 0
-            if self.state[agent]['y'] == self.map_size[0]-1 or self.state['map'][self.state[agent]['y']+1][self.state[agent]['x']]==-1:
+            if self.state[agent]['y'] == self.map_size[0]-1 or self.state['map'][self.state[agent]['y']+1][self.state[agent]['x']]!=0:
                 action_mask[3] = 0
 
             action_masks[agent] = action_mask
@@ -448,19 +449,16 @@ class Spec_Ops_Env(ParallelEnv):
                             obs_map[i][j]=3
                 # print(dup_state)
                 obs[agent]=obs_map.flatten()
+        #print("                       NIBBBBBBBBBAAAAAA!!!!!!!!!!!!!!!!!!                          ",obs)
         return obs
 
     def render(self):
         """Renders the environment."""
         #CLI Rendering
-        #os.system('cls' if os.name == 'nt' else 'clear')
-        # print(type(self.state))
+        # os.system('cls' if os.name == 'nt' else 'clear')
         # for i in self.state['map']:
         #     for j in i:
-        #         if(j==0):
-        #             print('.', end='')
-        #         else:
-        #             print('T', end='') if j == 1 else print('S', end='')
+        #         print(j,end='')
         #     print()
         # print('------------------------------------\n\n\n')
 
@@ -473,28 +471,29 @@ class Spec_Ops_Env(ParallelEnv):
         """
         self.viz.quit()
         pass
-from pettingzoo.test import api_test
 
-if __name__ == '__main__':
-    env=Spec_Ops_Env()
-    # parallel_api_test(env, num_cycles=1000, verbose_progress=False)
-    parallel_api_test(env, num_cycles=1000)
-    # observations, infos = env.reset()
+# from pettingzoo.test import api_test
 
-    # while env.agents:
-    #     #print(env.agents)
-    #     # this is where you would insert your policy
-    #     actions = {agent: env.action_space(agent).sample() for agent in env.agents}
-    #     #print(actions)
-    #     observations, rewards, terminations, truncations, infos = env.step(actions)
-    #     env.render()
+# if __name__ == '__main__':
+#     env=Spec_Ops_Env()
+#     # parallel_api_test(env, num_cycles=1000, verbose_progress=False)
+#     parallel_api_test(env, num_cycles=1000)
+#     # observations, infos = env.reset()
 
-    #     # for i in observations['terrorist_0']:
-    #     # print("terr:", np.unique(observations['terrorist_0']))
-    #     # print("sol:", np.unique(observations['soldier_0']))
-    #     # print("observations:", observations['terrorist_0'])
-    #     #print("rewards:", rewards)
-    #     #print("----------------------------------------")
-    #     # visualize_environment(env, observations)
-    #     # break
-    # env.close()
+#     # while env.agents:
+#     #     #print(env.agents)
+#     #     # this is where you would insert your policy
+#     #     actions = {agent: env.action_space(agent).sample() for agent in env.agents}
+#     #     #print(actions)
+#     #     observations, rewards, terminations, truncations, infos = env.step(actions)
+#     #     env.render()
+
+#     #     # for i in observations['terrorist_0']:
+#     #     # print("terr:", np.unique(observations['terrorist_0']))
+#     #     # print("sol:", np.unique(observations['soldier_0']))
+#     #     # print("observations:", observations['terrorist_0'])
+#     #     #print("rewards:", rewards)
+#     #     #print("----------------------------------------")
+#     #     # visualize_environment(env, observations)
+#     #     # break
+#     # env.close()

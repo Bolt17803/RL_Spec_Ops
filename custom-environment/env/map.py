@@ -14,7 +14,7 @@ def read_map_file(file_path):
             if char == '.':
                 result[i][j] = 0
             elif char == '#':
-                result[i][j] = -1
+                result[i][j] = 4
     
     return result
 

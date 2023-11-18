@@ -56,7 +56,7 @@ class Visualizer():
         for i in range(self.grid[0]):
             for j in range(self.grid[1]):
                 # print(i,j)
-                if state['map'][j][i] == -1:
+                if state['map'][j][i] == 4:
                     pygame.draw.rect(self.screen,BLACK,(w*i,w*j,w,w))
 
         # Draw the agents

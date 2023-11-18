@@ -73,8 +73,8 @@ class Visualizer():
                         state['soldier_player']['angle'] += 5
 
                 #is_visible.clear()
-                for i in is_visible:
-                    print(i)
+                # for i in is_visible:
+                    # print(i)
                 custom_fov_algo.compute_fov((state['soldier_player']['x'],state['soldier_player']['y']), state['soldier_player']['angle'], state['soldier_player']['fov'], is_blocking, reveal)
 
 
@@ -92,7 +92,7 @@ class Visualizer():
             for j in range(self.grid[1]):
                 if (i,j) in is_visible:
                     pass
-                    #pygame.draw.rect(self.screen,YELLOW,(w*i,w*j,w,w))
+                    pygame.draw.rect(self.screen,YELLOW,(w*i,w*j,w,w))
                 if state['map'][j][i] == -1 and (i,j) in is_visible:
                     pygame.draw.rect(self.screen,BLACK,(w*i,w*j,w,w))
 

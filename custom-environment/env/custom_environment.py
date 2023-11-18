@@ -31,6 +31,13 @@ def angle_from_agent(px, py, sx, sy): # (px,py) are the coordinates from which (
         angle += 2 * math.pi
     return 360-180*(1/math.pi)*angle
 
+def is_there(visible=None,corr_x=None,corr_y=None):
+    for i in visible:
+        if (corr_x,corr_y) in visible:
+            return True
+        else:
+            False
+        
 class Spec_Ops_Env(ParallelEnv):
     metadata={
         "name":"custom_environment_v0",
@@ -156,7 +163,7 @@ class Spec_Ops_Env(ParallelEnv):
         action_masks = self.move(actions)
 
         # Initialize termination conditions and rewards
-        terminations = {a: False for a in self.agents}
+        self.terminations = {a: False for a in self.agents}
         rewards = {a: 0 for a in self.agents}   # rewards for all agents are placed in the rewards dictionary to be returned
 
         # Calculate the rewards and punishments
@@ -173,13 +180,13 @@ class Spec_Ops_Env(ParallelEnv):
         # Get dummy infos (not used for now)
         infos = {a: {} for a in self.agents}
 
-        if any(terminations.values()) or all(truncations.values()):
+        if any(self.terminations.values()) or all(truncations.values()):
             self.agents = []
 
         if self.render_mode != None:
             self.render()
 
-        return self.observations, rewards, terminations, truncations, infos
+        return self.observations, rewards, self.terminations, truncations, infos
 
     def move(self, actions):
         action_masks = {}
@@ -222,143 +229,155 @@ class Spec_Ops_Env(ParallelEnv):
             action_masks[agent] = action_mask
         return action_masks
 
+
     def get_rewards(self, rewards=None):
-        rewards = rewards or {a: 0 for a in self.agents}
-        return rewards
-        #Calculate the rewards and punishments
-
-
-
-        angle_soldier = angle_from_agent(self.terr_x, self.terr_y, self.sol_x, self.sol_y)
-        # right most angles
-        ss1 = self.terr_angle-self.shoot_angle/2
-        if(ss1<0) : ss1 = 360+ss1
-        tt1 = self.terr_angle-self.terr_fov/2
-        if(tt1<0): tt1 = 360+tt1
-        # left most angles
-        ss2 = self.terr_angle+self.shoot_angle/2
-        if(ss2>=360): ss2=ss2-360
-        tt2 = self.terr_angle+self.terr_fov/2
-        if(tt2>=360): tt2=tt2-360
-        print("terrorist pov:",tt1,angle_soldier,tt2,self.terr_angle)
-        '''the scope of angle is 0<=angle<=359, there is no 360'''
-        # if(((angle_soldier >= tt1) and tt2 >= (angle_soldier)) and (tt2>tt1)):
-        #     rewards={"soldier":0, "terrorist":1}
-        #     terminations = {a: True for a in self.agents}
-        # elif((tt2<tt1) and (angle_soldier<=tt2 or angle_soldier>=tt1)):
-        #     rewards={"soldier":0, "terrorist":1}
-        #     terminations = {a: True for a in self.agents}
-        # else:
-        #     rewards={"soldier":1, "terrorist":-1}
+        rewards = {a: 0 for a in self.agents}
+        # return rewards
         reward_t={a: 0 for a in self.agents}
         reward_s={a: 0 for a in self.agents}
-        #Terrorist: FOV & Shoot Range Rewards/Punishments
-        if tt2>tt1 :
-            if ((angle_soldier>=tt1) and (angle_soldier<ss1)): # soldier in between right most shoot and fov line
-                reward_t={"soldier":-1, "terrorist":2}
-            elif((angle_soldier>=ss1) and (angle_soldier<=ss2)): # soldier in the shooting angle
-                reward_t={"soldier":-3, "terrorist":3}
-                terminations = {a: True for a in self.agents}
-            elif((angle_soldier>ss2) and (angle_soldier<=tt2)):
-                reward_t={"soldier":-1, "terrorist":2}
-            else:
-                reward_t={"soldier":2, "terrorist":-1}
-        else:
-            if tt1>ss1:
-                if (((angle_soldier>=tt1) and (angle_soldier>ss1)) or ((angle_soldier<tt1) and (angle_soldier<ss1))): # soldier in between right most shoot and fov line
-                    reward_t={"soldier":-1, "terrorist":2}
-                elif((angle_soldier>=ss1) and (angle_soldier<=ss2)): # soldier in the shooting angle
-                    reward_t={"soldier":-3, "terrorist":3}
-                    terminations = {a: True for a in self.agents}
-                elif((angle_soldier>ss2) and (angle_soldier<=tt2)):
-                    reward_t={"soldier":-1, "terrorist":2}
-                else:
-                    reward_t={"soldier":2, "terrorist":-1}
-            elif ss1>ss2:
-                if ((angle_soldier>=tt1) and (angle_soldier<ss1)): # soldier in between right most shoot and fov line
-                    reward_t={"soldier":-1, "terrorist":2}
-                elif(((angle_soldier>=ss1) and (angle_soldier>ss2)) or ((angle_soldier<ss1) and (angle_soldier<=ss2))):
-                    reward_t={"soldier":-3, "terrorist":3}
-                    terminations = {a: True for a in self.agents}
-                elif((angle_soldier>ss2) and (angle_soldier<=tt2)):
-                    reward_t={"soldier":-1, "terrorist":2}
-                else:
-                    reward_t={"soldier":2, "terrorist":-1}
-            else:
-                if ((angle_soldier>=tt1) and (angle_soldier<ss1)): # soldier in between right most shoot and fov line
-                    reward_t={"soldier":-1, "terrorist":2}
-                elif((angle_soldier>=ss1) and (angle_soldier<=ss2)): # soldier in the shooting angle
-                    reward_t={"soldier":-3, "terrorist":3}
-                    terminations = {a: True for a in self.agents}
-                elif(((angle_soldier>tt2) and (angle_soldier>ss2)) or ((angle_soldier<=tt2) and (angle_soldier<ss2))):
-                    reward_t={"soldier":-1, "terrorist":2}
-                else:
-                    reward_t={"soldier":2, "terrorist":-1}
+        #Calculate the rewards and punishments
+        for agent in self.agents:
 
-        #Soldier: FOV & Shoot Range Rewards/Punishments
-        tt1_ = tt1  #Saving variables
-        tt2_ = tt2
-        ss1_ = ss1
-        ss2_ = ss2
-        angle_soldier_ = angle_soldier
+            if agent.split("_")[0]=="terrorist":
 
-        angle_soldier = angle_from_agent(self.sol_x, self.sol_y, self.terr_x, self.terr_y)
-        # right most angles
-        ss1 = self.sol_angle-self.shoot_angle/2
-        if(ss1<0) : ss1 = 360+ss1
-        tt1 = self.sol_angle-self.terr_fov/2
-        if(tt1<0): tt1 = 360+tt1
-        # left most angles
-        ss2 = self.sol_angle+self.shoot_angle/2
-        if(ss2>=360): ss2=ss2-360
-        tt2 = self.sol_angle+self.terr_fov/2
-        if(tt2>=360): tt2=tt2-360
-        print("soldier pov:",tt1,angle_soldier,tt2,self.sol_angle)
-        if tt2>tt1 :
-            if ((angle_soldier>=tt1) and (angle_soldier<ss1)): # terrorist in between right most shoot and fov line
-                reward_s={"soldier":2, "terrorist":-1}
-            elif((angle_soldier>=ss1) and (angle_soldier<=ss2)): # terrorist in the shooting angle
-                reward_s={"soldier":3, "terrorist":-3}
-                terminations = {a: True for a in self.agents}
-            elif((angle_soldier>ss2) and (angle_soldier<=tt2)):
-                reward_s={"soldier":2, "terrorist":-1}
-            else:
-                reward_s={"soldier":-1, "terrorist":2}
-        else:
-            if tt1>ss1:
-                if (((angle_soldier>=tt1) and (angle_soldier>ss1)) or ((angle_soldier<tt1) and (angle_soldier<ss1))): # soldier in between right most shoot and fov line
-                    reward_s={"soldier":2, "terrorist":-1}
-                elif((angle_soldier>=ss1) and (angle_soldier<=ss2)): # terrorist in the shooting angle
-                    reward_s={"soldier":3, "terrorist":-3}
-                    terminations = {a: True for a in self.agents}
-                elif((angle_soldier>ss2) and (angle_soldier<=tt2)):
-                    reward_s={"soldier":2, "terrorist":-1}
-                else:
-                    reward_s={"soldier":-1, "terrorist":2}
-            elif ss1>ss2:
-                if ((angle_soldier>=tt1) and (angle_soldier<ss1)): # terrorist in between right most shoot and fov line
-                    reward_s={"soldier":2, "terrorist":-1}
-                elif(((angle_soldier>=ss1) and (angle_soldier>ss2)) or ((angle_soldier<ss1) and (angle_soldier<=ss2))):
-                    reward_s={"soldier":3, "terrorist":-3}
-                    terminations = {a: True for a in self.agents}
-                elif((angle_soldier>ss2) and (angle_soldier<=tt2)):
-                    reward_s={"soldier":2, "terrorist":-1}
-                else:
-                    reward_s={"soldier":-1, "terrorist":2}
-            else:
-                if ((angle_soldier>=tt1) and (angle_soldier<ss1)):
-                    reward_s={"soldier":2, "terrorist":-1}
-                elif((angle_soldier>=ss1) and (angle_soldier<=ss2)):
-                    reward_s={"soldier":3, "terrorist":-3}
-                    terminations = {a: True for a in self.agents}
-                elif(((angle_soldier>tt2) and (angle_soldier>ss2)) or ((angle_soldier<=tt2) and (angle_soldier<ss2))):
-                    reward_s={"soldier":2, "terrorist":-1}
-                else:
-                    reward_s={"soldier":-1, "terrorist":2}
+                for i in self.agents:
+                    if i.split("_")[0]=="soldier":
 
-        for i in rewards.keys():
-            print(i)
-            rewards[i]=reward_s[i]+reward_t[i]
+                        angle_soldier = angle_from_agent(self.state[agent]['x'], self.state[agent]['y'], self.state[i]['x'], self.state[i]['y'])
+                        # right most angles
+                        ss1 = self.state[agent]['angle']-self.state[agent]['shoot_angle']/2 #self.terr_angle-self.shoot_angle/2
+                        if(ss1<0) : ss1 = 360+ss1
+                        tt1 = self.state[agent]['angle']-self.state[agent]['fov']/2 #self.terr_angle-self.terr_fov/2
+                        if(tt1<0): tt1 = 360+tt1
+                        # left most angles
+                        ss2 = self.state[agent]['angle']+self.state[agent]['shoot_angle']/2 #self.terr_angle+self.shoot_angle/2
+                        if(ss2>=360): ss2=ss2-360
+                        tt2 = self.state[agent]['angle']+self.state[agent]['fov']/2 #self.terr_angle+self.terr_fov/2
+                        if(tt2>=360): tt2=tt2-360
+                        # print("terrorist pov:",tt1,angle_soldier,tt2,self.terr_angle)
+                        '''the scope of angle is 0<=angle<=359, there is no 360'''
+                        # if(((angle_soldier >= tt1) and tt2 >= (angle_soldier)) and (tt2>tt1)):
+                        #     rewards={"soldier":0, "terrorist":1}
+                        #     terminations = {a: True for a in self.agents}
+                        # elif((tt2<tt1) and (angle_soldier<=tt2 or angle_soldier>=tt1)):
+                        #     rewards={"soldier":0, "terrorist":1}
+                        #     terminations = {a: True for a in self.agents}
+                        # else:
+                        #     rewards={"soldier":1, "terrorist":-1}
+
+                        #Terrorist: FOV & Shoot Range Rewards/Punishments
+                        if tt2>tt1 :
+                            if ((angle_soldier>=tt1) and (angle_soldier<ss1)): # soldier in between right most shoot and fov line
+                                reward_t={"soldier":-1, "terrorist":2}
+                            elif((angle_soldier>=ss1) and (angle_soldier<=ss2)): # soldier in the shooting angle
+                                reward_t={"soldier":-3, "terrorist":3}
+                                self.terminations = {a: True for a in self.agents}
+                            elif((angle_soldier>ss2) and (angle_soldier<=tt2)):
+                                reward_t={"soldier":-1, "terrorist":2}
+                            else:
+                                reward_t={"soldier":2, "terrorist":-1}
+                        else:
+                            if tt1>ss1:
+                                if (((angle_soldier>=tt1) and (angle_soldier>ss1)) or ((angle_soldier<tt1) and (angle_soldier<ss1))): # soldier in between right most shoot and fov line
+                                    reward_t={"soldier":-1, "terrorist":2}
+                                elif((angle_soldier>=ss1) and (angle_soldier<=ss2)): # soldier in the shooting angle
+                                    reward_t={"soldier":-3, "terrorist":3}
+                                    self.terminations = {a: True for a in self.agents}
+                                elif((angle_soldier>ss2) and (angle_soldier<=tt2)):
+                                    reward_t={"soldier":-1, "terrorist":2}
+                                else:
+                                    reward_t={"soldier":2, "terrorist":-1}
+                            elif ss1>ss2:
+                                if ((angle_soldier>=tt1) and (angle_soldier<ss1)): # soldier in between right most shoot and fov line
+                                    reward_t={"soldier":-1, "terrorist":2}
+                                elif(((angle_soldier>=ss1) and (angle_soldier>ss2)) or ((angle_soldier<ss1) and (angle_soldier<=ss2))):
+                                    reward_t={"soldier":-3, "terrorist":3}
+                                    self.terminations = {a: True for a in self.agents}
+                                elif((angle_soldier>ss2) and (angle_soldier<=tt2)):
+                                    reward_t={"soldier":-1, "terrorist":2}
+                                else:
+                                    reward_t={"soldier":2, "terrorist":-1}
+                            else:
+                                if ((angle_soldier>=tt1) and (angle_soldier<ss1)): # soldier in between right most shoot and fov line
+                                    reward_t={"soldier":-1, "terrorist":2}
+                                elif((angle_soldier>=ss1) and (angle_soldier<=ss2)): # soldier in the shooting angle
+                                    reward_t={"soldier":-3, "terrorist":3}
+                                    self.terminations = {a: True for a in self.agents}
+                                elif(((angle_soldier>tt2) and (angle_soldier>ss2)) or ((angle_soldier<=tt2) and (angle_soldier<ss2))):
+                                    reward_t={"soldier":-1, "terrorist":2}
+                                else:
+                                    reward_t={"soldier":2, "terrorist":-1}
+            else:
+                for i in self.agents:
+                    if i.split("_")[0]=="terrorist":
+
+                        # #Soldier: FOV & Shoot Range Rewards/Punishments
+                        # tt1_ = tt1  #Saving variables
+                        # tt2_ = tt2
+                        # ss1_ = ss1
+                        # ss2_ = ss2
+                        # angle_soldier_ = angle_soldier
+
+                        angle_soldier = angle_from_agent(self.state[agent]['x'], self.state[agent]['y'], self.state[i]['x'], self.state[i]['y']) #angle_from_agent(self.sol_x, self.sol_y, self.terr_x, self.terr_y)
+                        # right most angles
+                        ss1 = self.state[agent]['angle']-self.state[agent]['shoot_angle']/2 #self.sol_angle-self.shoot_angle/2
+                        if(ss1<0) : ss1 = 360+ss1
+                        tt1 = self.state[agent]['angle']-self.state[agent]['fov']/2 #self.sol_angle-self.terr_fov/2
+                        if(tt1<0): tt1 = 360+tt1
+                        # left most angles
+                        ss2 = self.state[agent]['angle']+self.state[agent]['shoot_angle']/2 #self.sol_angle+self.shoot_angle/2
+                        if(ss2>=360): ss2=ss2-360
+                        tt2 = self.state[agent]['angle']+self.state[agent]['fov']/2 #self.sol_angle+self.terr_fov/2
+                        if(tt2>=360): tt2=tt2-360
+                        # print("soldier pov:",tt1,angle_soldier,tt2,self.sol_angle)
+
+                        if tt2>tt1 :
+                            if ((angle_soldier>=tt1) and (angle_soldier<ss1)): # terrorist in between right most shoot and fov line
+                                reward_s={"soldier":2, "terrorist":-1}
+                            elif((angle_soldier>=ss1) and (angle_soldier<=ss2)): # terrorist in the shooting angle
+                                reward_s={"soldier":3, "terrorist":-3}
+                                self.terminations = {a: True for a in self.agents}
+                            elif((angle_soldier>ss2) and (angle_soldier<=tt2)):
+                                reward_s={"soldier":2, "terrorist":-1}
+                            else:
+                                reward_s={"soldier":-1, "terrorist":2}
+                        else:
+                            if tt1>ss1:
+                                if (((angle_soldier>=tt1) and (angle_soldier>ss1)) or ((angle_soldier<tt1) and (angle_soldier<ss1))): # soldier in between right most shoot and fov line
+                                    reward_s={"soldier":2, "terrorist":-1}
+                                elif((angle_soldier>=ss1) and (angle_soldier<=ss2)): # terrorist in the shooting angle
+                                    reward_s={"soldier":3, "terrorist":-3}
+                                    self.terminations = {a: True for a in self.agents}
+                                elif((angle_soldier>ss2) and (angle_soldier<=tt2)):
+                                    reward_s={"soldier":2, "terrorist":-1}
+                                else:
+                                    reward_s={"soldier":-1, "terrorist":2}
+                            elif ss1>ss2:
+                                if ((angle_soldier>=tt1) and (angle_soldier<ss1)): # terrorist in between right most shoot and fov line
+                                    reward_s={"soldier":2, "terrorist":-1}
+                                elif(((angle_soldier>=ss1) and (angle_soldier>ss2)) or ((angle_soldier<ss1) and (angle_soldier<=ss2))):
+                                    reward_s={"soldier":3, "terrorist":-3}
+                                    self.terminations = {a: True for a in self.agents}
+                                elif((angle_soldier>ss2) and (angle_soldier<=tt2)):
+                                    reward_s={"soldier":2, "terrorist":-1}
+                                else:
+                                    reward_s={"soldier":-1, "terrorist":2}
+                            else:
+                                if ((angle_soldier>=tt1) and (angle_soldier<ss1)):
+                                    reward_s={"soldier":2, "terrorist":-1}
+                                elif((angle_soldier>=ss1) and (angle_soldier<=ss2)):
+                                    reward_s={"soldier":3, "terrorist":-3}
+                                    self.terminations = {a: True for a in self.agents}
+                                elif(((angle_soldier>tt2) and (angle_soldier>ss2)) or ((angle_soldier<=tt2) and (angle_soldier<ss2))):
+                                    reward_s={"soldier":2, "terrorist":-1}
+                                else:
+                                    reward_s={"soldier":-1, "terrorist":2}
+        print('sr:',reward_s)
+        print('tr:',reward_t)
+        for i in (rewards.keys()):
+            rewards[i]=reward_s[i.split("_")[0]]+reward_t[i.split("_")[0]]
+        print('rew:',rewards)
+        return rewards 
 
     def update_observations(self):
         # -1 for wall, 1 for terrorist, 2 for soldier, 0 for empty space, 3 for unknown region
@@ -370,24 +389,47 @@ class Spec_Ops_Env(ParallelEnv):
                 return True
             return False
         for agent in self.agents:
-            is_visible = set()
-            def reveal(x, y):
-                if x>=0 and y>=0 and x<=self.map_size[1] and y<self.map_size[0]:
-                    is_visible.add((x, y))
-            # du=self.state
-            obs_map=self.state['map'].copy()
-            custom_fov_algo.compute_fov((self.state[agent]['x'],self.state[agent]['y']), self.state[agent]['angle'], self.state[agent]['fov'], is_blocking, reveal)
-            # print(is_visible)
-            for i in range(obs_map.shape[0]):
-                for j in range(obs_map.shape[1]):
-                    # print("cord:",i,j)
-                    if((j,i) in is_visible):
-                        pass
-                    else:
-                        obs_map[i][j]=3
-            # print(dup_state)
-            obs[agent]=obs_map.flatten()
-
+            if agent.splt("_")[0]=="soldier":
+                self.sol_visible=set()
+            else:
+                self.terr_visible=set()
+        for agent in self.agents:
+            if agent.split("_")[0]=="soldier":
+                # is_visible=
+                def reveal(x, y):
+                    if x>=0 and y>=0 and x<=self.map_size[1] and y<self.map_size[0]:
+                        self.sol_visible.add((x, y))
+                # du=self.state
+                obs_map=self.state['map'].copy()
+                custom_fov_algo.compute_fov((self.state[agent]['x'],self.state[agent]['y']), self.state[agent]['angle'], self.state[agent]['fov'], is_blocking, reveal)
+                # print(is_visible)
+                for i in range(obs_map.shape[0]):
+                    for j in range(obs_map.shape[1]):
+                        # print("cord:",i,j)
+                        if((j,i) in self.sol_visible):
+                            pass
+                        else:
+                            obs_map[i][j]=3
+                # print(dup_state)
+                obs[agent]=obs_map.flatten()
+            else:
+                # is_visible=
+                def reveal(x, y):
+                    if x>=0 and y>=0 and x<=self.map_size[1] and y<self.map_size[0]:
+                        self.terr_visible.add((x, y))
+                # du=self.state
+                obs_map=self.state['map'].copy()
+                custom_fov_algo.compute_fov((self.state[agent]['x'],self.state[agent]['y']), self.state[agent]['angle'], self.state[agent]['fov'], is_blocking, reveal)
+                # print(is_visible)
+                for i in range(obs_map.shape[0]):
+                    for j in range(obs_map.shape[1]):
+                        # print("cord:",i,j)
+                        if((j,i) in self.terr_visible):
+                            pass
+                        else:
+                            obs_map[i][j]=3
+                # print(dup_state)
+                obs[agent]=obs_map.flatten()
         return obs
 
     def render(self):
@@ -429,8 +471,8 @@ if __name__ == '__main__':
         env.render()
 
         # for i in observations['terrorist_0']:
-        print("terr:", np.unique(observations['terrorist_0']))
-        print("sol:", np.unique(observations['soldier_0']))
+        # print("terr:", np.unique(observations['terrorist_0']))
+        # print("sol:", np.unique(observations['soldier_0']))
         # print("observations:", observations['terrorist_0'])
         #print("rewards:", rewards)
         #print("----------------------------------------")

@@ -49,6 +49,7 @@ def env(**kwargs):
     return env
 
 
+
 parallel_env = parallel_wrapper_fn(env)
 
 class Spec_Ops_Env(ParallelEnv):
@@ -102,7 +103,8 @@ class Spec_Ops_Env(ParallelEnv):
     # @functools.lru_cache(maxsize=None)
     # def action_space(self, agent):
     #     return Discrete(6)
-
+    def get_agent_ids(self):
+        return self.possible_agents
     def reset(self, seed=None, options=None):
         """
         Reset the environment to the starting point
@@ -125,11 +127,17 @@ class Spec_Ops_Env(ParallelEnv):
         for agent in self.agents:
             #VVIP NOTE: Handling for invalid inputs/Initialization required!
             self.state[agent] = {}
-            self.state[agent]['x'], self.state[agent]['y'], self.state[agent]['angle'] = self.config.get(agent,{'x':0})['x'], self.config.get(agent,{'y':0})['y'], self.config.get(agent,{'angle':0})['angle']
-            self.state[agent]['x']=np.random.randint(0,self.map_size[1]) if self.state[agent]['x']<0 else self.state[agent]['x'] #Randomly place the terrorist on the grid, facing an arbitrary angle
-            self.state[agent]['y']=np.random.randint(0,self.map_size[0]) if self.state[agent]['y']<0 else self.state[agent]['y']
-            self.state[agent]['angle']=np.random.randint(0,359) if self.state[agent]['angle']<0 else self.state[agent]['angle']
-            self.state[agent]['fov']=self.config.get(agent,{'fov': 40})['fov']  #Should be <179 becoz of math!
+            x = -1
+            y = -1
+            while(self.state[y][x]!=4 and x!=-1 and y!=-1):
+                x = np.random.randint(0,self.map_size[1])
+                y = np.random.randint(0,self.map_size[1])
+            print("\n\n\nAGENT COORDINATES:", x,y,agent,'\n\n\n')
+            #self.state[agent]['x'], self.state[agent]['y'], self.state[agent]['angle'] = self.config.get(agent,{'x':x})['x'], self.config.get(agent,{'y':y})['y'], self.config.get(agent,{'angle':0})['angle']
+            self.state[agent]['x']=x #if self.state[agent]['x']<0 else self.state[agent]['x'] #Randomly place the terrorist on the grid, facing an arbitrary angle
+            self.state[agent]['y']=y #if self.state[agent]['y']<0 else self.state[agent]['y']
+            self.state[agent]['angle']=np.random.randint(0,359) #if self.state[agent]['angle']<0 else self.state[agent]['angle']
+            self.state[agent]['fov']=self.config.get(agent,{'fov': 90})['fov']  #Should be <179 becoz of math!
             self.state[agent]['shoot_angle']=self.config.get(agent,{'shooting_angle': 15})['shooting_angle']
             self.state[agent]['hp'] = 100
             self.state['map'][self.state[agent]['y']][self.state[agent]['x']] = self.agent_name_mapping[agent] # updating the location oof soldier and terrorist in state map
@@ -193,8 +201,8 @@ class Spec_Ops_Env(ParallelEnv):
         if any(self.terminations.values()) or all(truncations.values()):
             self.agents = []
 
-        if self.render_mode != None:
-            self.render()
+        # if self.render_mode != None:
+        #     self.render()
 
         return self.observations, rewards, self.terminations, truncations, infos
 

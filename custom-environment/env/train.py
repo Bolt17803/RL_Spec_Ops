@@ -133,7 +133,7 @@ class CNNModelV2(TorchModelV2, nn.Module):
     def value_function(self):
         return self._value_out.flatten()
     
-def env_creator(args):
+def env_creator():
     env = Spec_Ops_Env()
     
     # env = ss.dtype_v0(env, "int32")
@@ -141,19 +141,27 @@ def env_creator(args):
     
     return env
 
+def policy_map_fn(agent_id: str, _episode=None, _worker=None, **_kwargs) -> str:
+    """
+    Maps agent_id to policy_id
+    """
+    return agent_id
+    #raise RuntimeError(f'Nee Yabba!!! Invalid agent_id: {agent_id}')
+    
 if __name__ == "__main__":
     ray.init()
 
     env_name = "123"
 
-    register_env(env_name, lambda config: ParallelPettingZooEnv(env_creator(config)))
+    register_env(env_name, lambda config: ParallelPettingZooEnv(env_creator()))
     ModelCatalog.register_custom_model("CNNModelV2", CNNModelV2)
 
 env=env_creator()
+
 config = (
         PPOConfig()
         .environment(env="123", clip_actions=True)
-        .rollouts(num_rollout_workers=4, rollout_fragment_length=128)
+        .rollouts(num_rollout_workers=15, rollout_fragment_length=128)
         .training(
             train_batch_size=512,
             lr=2e-5,
@@ -168,7 +176,7 @@ config = (
             num_sgd_iter=10,
         )
         .multi_agent(
-            policies=env.get_agent_ids(),
+            policies=env.possible_agents,
             policy_mapping_fn=(lambda agent_id, *args, **kwargs: agent_id),
         )
         .debugging(log_level="ERROR")
@@ -193,7 +201,7 @@ tune.run(
         "PPO",
         name="PPO",
         stop={"timesteps_total": 5000000},
-        checkpoint_freq=10,
+        checkpoint_freq=1,
         local_dir=local_dir,
         config=config.to_dict(),
     )

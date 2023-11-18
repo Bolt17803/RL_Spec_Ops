@@ -9,7 +9,7 @@ import os
 import map
 import custom_fov_algo
 import gymnasium
-import gymnasium.spaces
+# from gymnasium.spaces *
 from gymnasium.spaces import Discrete, MultiDiscrete
 from pettingzoo import AECEnv
 from gymnasium.utils import EzPickle
@@ -72,17 +72,9 @@ class Spec_Ops_Env(ParallelEnv):
         #Initializing
         self.possible_agents=["terrorist_"+str(i) for i in range(self.config.get('num_terr',1))]
         self.possible_agents.extend(["soldier_"+str(i) for i in range(self.config.get('num_sol',1))])
-        #self.shoot_angle = self.config.get('shoot_angle', 15)   #Common to all agentsagents
-        #
-        # self.terr_x=None    #Change this to support multiple agents
-        # self.terr_y=None
-        # self.terr_angle=None
-        # self.terr_fov = self.config.get('terr_fov', 30) #please keep <=179 so math works correctly!!!
-        #
-        # self.sol_x=None
-        # self.sol_y=None
-        # self.sol_angle=None
-        # self.soldier_fov = self.config.get('sol_fov', 30)  #please keep <=179 so math works correctly!!!
+
+        self.observation_spaces=dict(zip(self.possible_agents, MultiDiscrete([6400]*5)*2))
+        self.action_space=dict(zip(self.possible_agents, Discrete(6)))
         self.sol_visible=set() # currently visible coordinates
         self.s_visible=set() # all the previous memory
         self.terr_visible=set()  # currently visible coordinates
@@ -101,14 +93,14 @@ class Spec_Ops_Env(ParallelEnv):
         self.viz = Visualizer(grid=self.map_size, agents=self.possible_agents)
 
 
-    @functools.lru_cache(maxsize=None)
-    def observation_space(self, agent):
-        # gymnasium spaces are defined and documented here: https://gymnasium.farama.org/api/spaces/
-        return self.observations[agent] #Change this
+    # @functools.lru_cache(maxsize=None)
+    # def observation_spaces(self, agent):
+    #     # gymnasium spaces are defined and documented here: https://gymnasium.farama.org/api/spaces/
+    #     return self.observations[agent] #Change this
 
-    @functools.lru_cache(maxsize=None)
-    def action_space(self, agent):
-        return Discrete(6)
+    # @functools.lru_cache(maxsize=None)
+    # def action_space(self, agent):
+    #     return Discrete(6)
 
     def reset(self, seed=None, options=None):
         """
@@ -148,8 +140,8 @@ class Spec_Ops_Env(ParallelEnv):
         self.render()
         # print(self.state)
         #time.sleep(10)
-        infos = {a: {} for a in self.agents}    #Just a dummy, we are not using it for now
-        self.observations = {agent: None for agent in self.agents}
+        infos = dict({a: {} for a in self.agents})    #Just a dummy, we are not using it for now
+        self.observations = self.observation_spaces
 
         return self.observations, infos
 
@@ -203,7 +195,7 @@ class Spec_Ops_Env(ParallelEnv):
         if self.render_mode != None:
             self.render()
 
-        return self.observations, rewards, self.terminations, truncations, infos
+        return self.observations, rewards, self.terminations, truncations
 
     def move(self, actions):
         action_masks = {}

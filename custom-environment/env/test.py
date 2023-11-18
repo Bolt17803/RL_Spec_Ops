@@ -54,7 +54,7 @@ def get_multiagent_policies() -> Dict[str,PolicySpec]:
 if __name__=="__main__":
     ray.init(local_mode=True)  # in local mode you can debug it
 
-    RUN_WITH_TUNE = True
+    RUN_WITH_TUNE = False
     NUM_ITERATIONS = 500  # 500 results in Tensorboard shown with 500 iterations (about an hour)
 
     # Tune is the system for keeping track of all of the running jobs, originally for

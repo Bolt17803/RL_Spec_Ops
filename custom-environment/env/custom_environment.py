@@ -405,6 +405,19 @@ class Spec_Ops_Env(ParallelEnv):
         return rewards 
 
     def update_observations(self):
+        # New code giving entire state to both agents
+        obs={}
+        for agent in self.agents:
+            if agent.split("_")[0]=="soldier":
+                obs_map=self.state['map'].copy()
+                obs[agent]=obs_map.flatten()
+            else:
+                obs_map=self.state['map'].copy()
+                obs[agent]=obs_map.flatten()
+        return obs
+    
+        # Old code with detailed observation fov restriction
+        
         # -1 for wall, 1 for terrorist, 2 for soldier, 0 for empty space, 3 for unknown region
         obs={}
         def is_blocking(x, y):

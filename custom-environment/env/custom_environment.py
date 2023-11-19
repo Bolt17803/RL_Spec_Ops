@@ -129,7 +129,7 @@ class Spec_Ops_Env(ParallelEnv):
             self.state[agent] = {}
             x = -1
             y = -1
-            while(self.state[y][x]!=4 and x!=-1 and y!=-1):
+            while(self.state['map'][y][x]!=4 or x<0 or y<0):
                 x = np.random.randint(0,self.map_size[1])
                 y = np.random.randint(0,self.map_size[1])
             print("\n\n\nAGENT COORDINATES:", x,y,agent,'\n\n\n')
@@ -201,8 +201,8 @@ class Spec_Ops_Env(ParallelEnv):
         if any(self.terminations.values()) or all(truncations.values()):
             self.agents = []
 
-        # if self.render_mode != None:
-        #     self.render()
+        if self.render_mode != None:
+            self.render()
 
         return self.observations, rewards, self.terminations, truncations, infos
 
@@ -461,6 +461,7 @@ class Spec_Ops_Env(ParallelEnv):
         return obs
 
     def render(self):
+        
         """Renders the environment."""
         #CLI Rendering
         # os.system('cls' if os.name == 'nt' else 'clear')

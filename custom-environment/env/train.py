@@ -96,6 +96,7 @@ Author: Rohan (https://github.com/Rohan138)
 
 import os
 
+import torch
 import ray
 import supersuit as ss
 from ray import tune
@@ -149,19 +150,21 @@ def policy_map_fn(agent_id: str, _episode=None, _worker=None, **_kwargs) -> str:
     #raise RuntimeError(f'Nee Yabba!!! Invalid agent_id: {agent_id}')
     
 if __name__ == "__main__":
-    ray.init()
+    ray.init(ignore_reinit_error=True, num_gpus=1)
 
     env_name = "123"
 
+    print("\n\n\nNEE YABBA TORCH CUDA UNDA?:", torch.cuda.is_available(),'\n\n\n')
     register_env(env_name, lambda config: ParallelPettingZooEnv(env_creator()))
     ModelCatalog.register_custom_model("CNNModelV2", CNNModelV2)
+
 
 env=env_creator()
 
 config = (
         PPOConfig()
         .environment(env="123", clip_actions=True)
-        .rollouts(num_rollout_workers=15, rollout_fragment_length=128)
+        .rollouts(num_rollout_workers=4, rollout_fragment_length=128)
         .training(
             train_batch_size=512,
             lr=2e-5,
@@ -181,7 +184,7 @@ config = (
         )
         .debugging(log_level="ERROR")
         .framework(framework="torch")
-        .resources(num_gpus=int(os.environ.get("RLLIB_NUM_GPUS", "0")))
+        .resources(num_gpus=1)#int(os.environ.get("RLLIB_NUM_GPUS", "0"))
     )
 
 
@@ -201,7 +204,7 @@ tune.run(
         "PPO",
         name="PPO",
         stop={"timesteps_total": 5000000},
-        checkpoint_freq=1,
+        checkpoint_freq=10,
         local_dir=local_dir,
         config=config.to_dict(),
     )

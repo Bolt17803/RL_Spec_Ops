@@ -92,7 +92,10 @@ class Spec_Ops_Env(ParallelEnv):
         #initializing rendering screen
         self.render_mode = self.config.get('render_mode', 'ansi')    #Check clashing with render_mode variable
         self.map_size = self.config.get('map_size', MAP_SIZE)
-        self.viz = Visualizer(grid=self.map_size, agents=self.possible_agents)
+
+        self.vizz = False
+        if(self.vizz):
+            self.viz = Visualizer(grid=self.map_size, agents=self.possible_agents)
 
 
     # @functools.lru_cache(maxsize=None)
@@ -146,7 +149,7 @@ class Spec_Ops_Env(ParallelEnv):
             if(self.state[agent]['fov'] >= 180 or self.state[agent]['fov'] >= 180):
                 print("invalid fov angle agent ki icchav, chusko bey")
                 exit()
-        self.render()
+                
         # print(self.state)
         #time.sleep(10)
         infos = dict({a: {} for a in self.agents})    #Just a dummy, we are not using it for now
@@ -201,7 +204,7 @@ class Spec_Ops_Env(ParallelEnv):
         if any(self.terminations.values()) or all(truncations.values()):
             self.agents = []
 
-        if self.render_mode != None:
+        if self.render_mode != None and self.vizz:
             self.render()
 
         return self.observations, rewards, self.terminations, truncations, infos
@@ -417,7 +420,7 @@ class Spec_Ops_Env(ParallelEnv):
         return obs
     
         # Old code with detailed observation fov restriction
-        
+
         # -1 for wall, 1 for terrorist, 2 for soldier, 0 for empty space, 3 for unknown region
         obs={}
         def is_blocking(x, y):
@@ -474,7 +477,8 @@ class Spec_Ops_Env(ParallelEnv):
         return obs
 
     def render(self):
-        
+        if(self.vizz == False):
+            return
         """Renders the environment."""
         #CLI Rendering
         # os.system('cls' if os.name == 'nt' else 'clear')

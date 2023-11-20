@@ -93,10 +93,8 @@ class Spec_Ops_Env(ParallelEnv):
         self.render_mode = self.config.get('render_mode', 'ansi')    #Check clashing with render_mode variable
         self.map_size = self.config.get('map_size', MAP_SIZE)
 
-        self.vizz = False
-        if(self.vizz):
-            self.viz = Visualizer(grid=self.map_size, agents=self.possible_agents)
-
+        self.viz = Visualizer(grid=self.map_size, agents=self.possible_agents)
+        # self.viz=Visualizer()
 
     # @functools.lru_cache(maxsize=None)
     # def observation_spaces(self, agent):
@@ -204,7 +202,7 @@ class Spec_Ops_Env(ParallelEnv):
         if any(self.terminations.values()) or all(truncations.values()):
             self.agents = []
 
-        if self.render_mode != None and self.vizz:
+        if self.render_mode != None and self.viz:
             self.render()
 
         return self.observations, rewards, self.terminations, truncations, infos
@@ -477,8 +475,8 @@ class Spec_Ops_Env(ParallelEnv):
         return obs
 
     def render(self):
-        if(self.vizz == False):
-            return
+        # if(self.viz == False):
+        #     return
         """Renders the environment."""
         #CLI Rendering
         # os.system('cls' if os.name == 'nt' else 'clear')

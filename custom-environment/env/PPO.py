@@ -487,7 +487,7 @@ class Spec_Ops_Env(ParallelEnv):
         # print('------------------------------------\n\n\n')
 
         self.viz.update(self.state, self.agents)
-        #time.sleep(0.0)
+        time.sleep(0.1)
 
     def close(self):
         """

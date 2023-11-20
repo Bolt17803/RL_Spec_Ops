@@ -7,14 +7,22 @@ BLUE = (0, 0, 255)
 RED = (255, 0, 0)
 BLACK = (0, 0, 0)
 WHITE = (255,255,255)
-PINK = (235,32,239)
-LIGHT_GREEN = (144, 238, 144)  # Define light green color
+GREY = (128,128,128)
+DIM_GREY = (105,105,105) 
+DIM = (81,72,79)
 soldier_sprite = pygame.image.load('Maps/soldier.png')
 terrorist_sprite = pygame.image.load('Maps/terrorist.png')
-width = 40
-height = 40
+block = pygame.image.load('Maps/block.png')
+path = pygame.image.load('Maps/path.png')
+width = 50
+height = 50
 soldier = pygame.transform.scale(soldier_sprite, (width, height))
 terrorist = pygame.transform.scale(terrorist_sprite, (width, height))
+block = pygame.transform.scale(block, (25, 25))
+path = pygame.transform.scale(path, (10, 10))
+bullets = []
+
+
 class AttributeDict(dict):
     __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__
@@ -29,7 +37,7 @@ class Visualizer():
         self.grid = grid
         self.screen_dim = screen_dim
         self.screen = pygame.display.set_mode(self.screen_dim)
-        self.screen.fill(LIGHT_GREEN)
+        self.screen.fill(DIM_GREY)
         # Set the caption
         self.caption = caption
         pygame.display.set_caption(self.caption)
@@ -51,20 +59,22 @@ class Visualizer():
                 sys.exit()
 
         #Draw white background
-        self.screen.fill(WHITE)
+        self.screen.fill(DIM_GREY)
 
         #Draw the grid
         w = int(self.screen_dim[0]/self.grid[0])
         for i in range(0, self.screen_dim[0], int(self.screen_dim[0]/self.grid[0])):
-            pygame.draw.line(self.screen, LIGHT_GREEN, (i, 0), (i, self.screen_dim[0]))
-            pygame.draw.line(self.screen, LIGHT_GREEN, (0, i), (self.screen_dim[0], i))
+            for j in range(0, self.screen_dim[1], int(self.screen_dim[1] / self.grid[1])):
+
+                self.screen.blit(path, (i,j))
 
         #Draw walls
         for i in range(self.grid[0]):
             for j in range(self.grid[1]):
                 # print(i,j)
                 if state['map'][j][i] == 4:
-                    pygame.draw.rect(self.screen,PINK,(w*i,w*j,w,w))
+                    self.screen.blit(block, (w * i, w *j,w,w))
+                    # pygame.draw.rect(self.screen,BLACK,(w*i,w*j,w,w))
 
         # Draw the agents
         for agent in self.agents:
@@ -98,15 +108,9 @@ class Visualizer():
                 pygame.draw.line(self.screen, RED, (px, py), (px + signx * l * math.cos(pa - shoot_angle / 2), py + signy * l * math.sin(pa - shoot_angle / 2)))
                 # Increment the angle for further drawing
                 pa += math.pi / 2
-                # Draw a polygon representing the soldier's view
-                # Draw a polygon representing the soldier's body
-                # pygame.draw.polygon(self.screen, (0, 0, 255),
-                #                     ((px + a * math.sin(pa), py + a * math.cos(pa)),
-                #                     (px + a * math.sin(math.pi / 3 - pa), py - a * math.cos(math.pi / 3 - pa)),
-                #                     (px - a * math.sin(2 * math.pi / 3 - pa), py + a * math.cos(2 * math.pi / 3 - pa))))
-                # Draw a rectangle representing the soldier's position on the grid
-                # pygame.draw.rect(self.screen,BLACK,(w*agent.x,w*agent.y,w,w))
-                # Draw the soldier image at the calculated position
+                
+                new_bullet_x, new_bullet_y = px, py  # Initial position at the soldier's location
+                bullets.append((new_bullet_x, new_bullet_y))  # Add the new bullet to the list
                 self.screen.blit(soldier, (w * agent.x, w * agent.y))
             elif 'terrorist' in agent_name:
     # Check if the agent is a terrorist

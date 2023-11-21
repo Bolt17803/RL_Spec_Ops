@@ -137,11 +137,9 @@ class Spec_Ops_Env(ParallelEnv):
             while(self.state['map'][y][x]!=0 or x<0 or y<0):
                 x = np.random.randint(0,self.map_size[1])
                 y = np.random.randint(0,self.map_size[1])
-            #print("\n\n\nAGENT COORDINATES:", x,y,agent,'\n\n\n')
-            #self.state[agent]['x'], self.state[agent]['y'], self.state[agent]['angle'] = self.config.get(agent,{'x':x})['x'], self.config.get(agent,{'y':y})['y'], self.config.get(agent,{'angle':0})['angle']
-            self.state[agent]['x']=x #if self.state[agent]['x']<0 else self.state[agent]['x'] #Randomly place the terrorist on the grid, facing an arbitrary angle
-            self.state[agent]['y']=y #if self.state[agent]['y']<0 else self.state[agent]['y']
-            self.state[agent]['angle']=np.random.randint(0,359) #if self.state[agent]['angle']<0 else self.state[agent]['angle']
+            self.state[agent]['x']=x  #Randomly place the terrorist on the grid, facing an arbitrary angle
+            self.state[agent]['y']=y 
+            self.state[agent]['angle']=np.random.randint(0,359) 
             self.state[agent]['fov']=self.config.get(agent,{'fov': 90})['fov']  #Should be <179 becoz of math!
             self.state[agent]['shoot_angle']=self.config.get(agent,{'shooting_angle': 15})['shooting_angle']
             if agent=="soldier_0":
@@ -149,17 +147,9 @@ class Spec_Ops_Env(ParallelEnv):
             else:
                 self.state[agent]['hp'] = self.terr_hp
             self.state['map'][self.state[agent]['y']][self.state[agent]['x']] = self.agent_name_mapping[agent] # updating the location oof soldier and terrorist in state map
-            # print(self.state[agent]['hp'])
-            #Error Checking
             if(self.state[agent]['fov'] >= 180 or self.state[agent]['fov'] >= 180):
-                #print("invalid fov angle agent ki icchav, chusko bey")
                 exit()
-        # $$
         self.terr_last_known_pos = {'x':self.state['terrorist_0']['x'],'y':self.state['terrorist_0']['y']}
-        #print('reset ke baad:', self.terr_last_known_pos)
-                
-        # print(self.state)
-        #time.sleep(10)
         infos = dict({a: {} for a in self.agents})    #Just a dummy, we are not using it for now
         self.observations = self.update_observations()
         
@@ -268,20 +258,6 @@ class Spec_Ops_Env(ParallelEnv):
 
             #Marking the newly occupied position of agent in the state map
             self.state['map'][self.state[agent]['y']][self.state[agent]['x']] = self.agent_name_mapping[agent]
-            
-            #Generate Action masks
-            # action_mask = np.ones(6, dtype=np.int8)
-            # if self.state[agent]['x'] == 0 or self.state['map'][self.state[agent]['y']][self.state[agent]['x']-1]!=0:
-            #     action_mask[0] = 0
-            # if self.state[agent]['x'] == self.map_size[1]-1 or self.state['map'][self.state[agent]['y']][self.state[agent]['x']+1]!=0:
-            #     action_mask[1] = 0
-            # if self.state[agent]['y'] == 0 or self.state['map'][self.state[agent]['y']-1][self.state[agent]['x']]!=0:
-            #     action_mask[2] = 0
-            # if self.state[agent]['y'] == self.map_size[0]-1 or self.state['map'][self.state[agent]['y']+1][self.state[agent]['x']]!=0:
-            #     action_mask[3] = 0
-            #
-            #action_masks[agent] = action_mask
-        #print('move lo collision rewards:',collision_rewards)
         return collision_rewards
 
 
@@ -297,9 +273,6 @@ class Spec_Ops_Env(ParallelEnv):
 
                 for i in self.agents:
                     if i.split("_")[0]=="soldier":
-                        # print("soldier_corr:",( self.state[i]['x'], self.state[i]['y']))
-                        # print("terr vis coor:",self.terr_visible)
-                        # print(is_there(self.terr_visible,self.state[i]['x'],self.state[i]['y']))
                         angle_soldier = angle_from_agent(self.state[agent]['x'], self.state[agent]['y'], self.state[i]['x'], self.state[i]['y'])
                         # right most angles
                         ss1 = self.state[agent]['angle']-self.state[agent]['shoot_angle']/2 #self.terr_angle-self.shoot_angle/2
@@ -313,16 +286,6 @@ class Spec_Ops_Env(ParallelEnv):
                         if(tt2>=360): tt2=tt2-360
                         # print("terrorist pov:",tt1,angle_soldier,tt2,self.terr_angle)
                         '''the scope of angle is 0<=angle<=359, there is no 360'''
-                        # if(((angle_soldier >= tt1) and tt2 >= (angle_soldier)) and (tt2>tt1)):
-                        #     rewards={"soldier":0, "terrorist":1}
-                        #     terminations = {a: True for a in self.agents}
-                        # elif((tt2<tt1) and (angle_soldier<=tt2 or angle_soldier>=tt1)):
-                        #     rewards={"soldier":0, "terrorist":1}
-                        #     terminations = {a: True for a in self.agents}
-                        # else:
-                        #     rewards={"soldier":1, "terrorist":-1}
-
-                        #Terrorist: FOV & Shoot Range Rewards/Punishments
                         if tt2>tt1 :
                             if ((angle_soldier>=tt1) and (angle_soldier<ss1) and is_there(self.terr_visible,self.state[i]['x'],self.state[i]['y'])): # soldier in between right most shoot and fov line
                                 reward_t={"soldier":-5, "terrorist":10}
@@ -331,8 +294,6 @@ class Spec_Ops_Env(ParallelEnv):
                                 self.sol_hp-=1
                             elif((angle_soldier>ss2) and (angle_soldier<=tt2) and is_there(self.terr_visible,self.state[i]['x'],self.state[i]['y'])):
                                 reward_t={"soldier":-5, "terrorist":10}
-                            # else:
-                            #     reward_t={"soldier":2, "terrorist":-1}
                         else:
                             if tt1>ss1:
                                 if ((((angle_soldier>=tt1) and (angle_soldier>ss1)) or ((angle_soldier<tt1) and (angle_soldier<ss1))) and is_there(self.terr_visible,self.state[i]['x'],self.state[i]['y'])): # soldier in between right most shoot and fov line
@@ -342,8 +303,6 @@ class Spec_Ops_Env(ParallelEnv):
                                     self.sol_hp-=1
                                 elif((angle_soldier>ss2) and (angle_soldier<=tt2) and is_there(self.terr_visible,self.state[i]['x'],self.state[i]['y'])):
                                     reward_t={"soldier":-5, "terrorist":10}
-                                # else:
-                                #     reward_t={"soldier":2, "terrorist":-1}
                             elif ss1>ss2:
                                 if ((angle_soldier>=tt1) and (angle_soldier<ss1) and is_there(self.terr_visible,self.state[i]['x'],self.state[i]['y'])): # soldier in between right most shoot and fov line
                                     reward_t={"soldier":-5, "terrorist":10}
@@ -352,8 +311,6 @@ class Spec_Ops_Env(ParallelEnv):
                                     self.sol_hp-=1
                                 elif((angle_soldier>ss2) and (angle_soldier<=tt2) and is_there(self.terr_visible,self.state[i]['x'],self.state[i]['y'])):
                                     reward_t={"soldier":-5, "terrorist":10}
-                                # else:
-                                #     reward_t={"soldier":2, "terrorist":-1}
                             else:
                                 if ((angle_soldier>=tt1) and (angle_soldier<ss1) and is_there(self.terr_visible,self.state[i]['x'],self.state[i]['y'])): # soldier in between right most shoot and fov line
                                     reward_t={"soldier":-5, "terrorist":10}
@@ -362,22 +319,9 @@ class Spec_Ops_Env(ParallelEnv):
                                     self.sol_hp-=1
                                 elif((((angle_soldier>tt2) and (angle_soldier>ss2)) or ((angle_soldier<=tt2) and (angle_soldier<ss2))) and is_there(self.terr_visible,self.state[i]['x'],self.state[i]['y'])):
                                     reward_t={"soldier":-5, "terrorist":10}
-                                # else:
-                                #     reward_t={"soldier":2, "terrorist":-1}
             else:
                 for i in self.agents:
                     if i.split("_")[0]=="terrorist":
-
-                        # #Soldier: FOV & Shoot Range Rewards/Punishments
-                        # tt1_ = tt1  #Saving variables
-                        # tt2_ = tt2
-                        # ss1_ = ss1
-                        # ss2_ = ss2
-                        # angle_soldier_ = angle_soldier
-                        # print("#############################################")
-                        # print("terr_corr:",(self.state[i]['x'], self.state[i]['y']))
-                        # print("sol vis coor:",self.sol_visible)
-                        # print(is_there(self.sol_visible,self.state[i]['x'],self.state[i]['y']))
                         angle_soldier = angle_from_agent(self.state[agent]['x'], self.state[agent]['y'], self.state[i]['x'], self.state[i]['y']) #angle_from_agent(self.sol_x, self.sol_y, self.terr_x, self.terr_y)
                         # right most angles
                         ss1 = self.state[agent]['angle']-self.state[agent]['shoot_angle']/2 #self.sol_angle-self.shoot_angle/2
@@ -389,7 +333,6 @@ class Spec_Ops_Env(ParallelEnv):
                         if(ss2>=360): ss2=ss2-360
                         tt2 = self.state[agent]['angle']+self.state[agent]['fov']/2 #self.sol_angle+self.terr_fov/2
                         if(tt2>=360): tt2=tt2-360
-                        # print("soldier pov:",tt1,angle_soldier,tt2,self.sol_angle)
 
                         if tt2>tt1 :
                             if ((angle_soldier>=tt1) and (angle_soldier<ss1) and is_there(self.sol_visible,self.state[i]['x'],self.state[i]['y'])): # terrorist in between right most shoot and fov line
@@ -399,8 +342,6 @@ class Spec_Ops_Env(ParallelEnv):
                                 self.terr_hp-=1                         
                             elif((angle_soldier>ss2) and (angle_soldier<=tt2) and is_there(self.sol_visible,self.state[i]['x'],self.state[i]['y'])):
                                 reward_s={"soldier":10, "terrorist":-5}
-                            # else:
-                            #     reward_s={"soldier":-1, "terrorist":2}
                         else:
                             if tt1>ss1:
                                 if ((((angle_soldier>=tt1) and (angle_soldier>ss1)) or ((angle_soldier<tt1) and (angle_soldier<ss1))) and is_there(self.sol_visible,self.state[i]['x'],self.state[i]['y'])): # soldier in between right most shoot and fov line
@@ -410,8 +351,6 @@ class Spec_Ops_Env(ParallelEnv):
                                     self.terr_hp-=1                               
                                 elif((angle_soldier>ss2) and (angle_soldier<=tt2) and is_there(self.sol_visible,self.state[i]['x'],self.state[i]['y'])):
                                     reward_s={"soldier":10, "terrorist":-5}
-                                # else:
-                                #     reward_s={"soldier":-1, "terrorist":2}
                             elif ss1>ss2:
                                 if ((angle_soldier>=tt1) and (angle_soldier<ss1) and is_there(self.sol_visible,self.state[i]['x'],self.state[i]['y'])): # terrorist in between right most shoot and fov line
                                     reward_s={"soldier":10, "terrorist":-5}
@@ -420,8 +359,6 @@ class Spec_Ops_Env(ParallelEnv):
                                     self.terr_hp-=1
                                 elif((angle_soldier>ss2) and (angle_soldier<=tt2) and is_there(self.sol_visible,self.state[i]['x'],self.state[i]['y'])):
                                     reward_s={"soldier":10, "terrorist":-5}
-                                # else:
-                                #     reward_s={"soldier":-1, "terrorist":2}
                             else:
                                 if ((angle_soldier>=tt1) and (angle_soldier<ss1) and is_there(self.sol_visible,self.state[i]['x'],self.state[i]['y'])):
                                     reward_s={"soldier":10, "terrorist":-5}
@@ -430,13 +367,7 @@ class Spec_Ops_Env(ParallelEnv):
                                     self.terr_hp-=1
                                 elif((((angle_soldier>tt2) and (angle_soldier>ss2)) or ((angle_soldier<=tt2) and (angle_soldier<ss2))) and is_there(self.sol_visible,self.state[i]['x'],self.state[i]['y'])):
                                     reward_s={"soldier":10, "terrorist":-5}
-                                # else:
-                                #     reward_s={"soldier":-1, "terrorist":2}
-        # print('sr:',reward_s)
-        # print('tr:',reward_t)
-        # print('rwww:',rewards)
         for i in (rewards.keys()):
-            #print('\n\n\nrewards::\n\n\n',i,i.split("_")[0])
             rewards[i]=reward_s[i.split("_")[0]]+reward_t[i.split("_")[0]]
         
         sol_explore_reward=(1.0/((self.sol_visited_map[self.state['soldier_0']['y']][self.state['soldier_0']['x']]+1)*22))
@@ -451,13 +382,8 @@ class Spec_Ops_Env(ParallelEnv):
         rewards['terrorist_0']+=self.terr_visited_long_x[self.state['terrorist_0']['x']]
         if(self.terr_visited_long_x[self.state['terrorist_0']['x']] == 1):
             self.terr_visited_long_x[self.state['terrorist_0']['x']] = 0
-        #print('rew:',rewards)
-
-        #Adding collision rewards(punishments):
-        #print(collision_rewards)
         for agent in self.agents:
             rewards[agent] += collision_rewards[agent]
-        #print('\n\n\n\ncollision rewards:\n\n\n', collision_rewards, rewards)
 
         self.sol_visible.clear()
         self.terr_visible.clear()
@@ -465,20 +391,6 @@ class Spec_Ops_Env(ParallelEnv):
         return rewards 
 
     def update_observations(self):
-        # New code giving entire state to both agents
-        # obs={}
-        # for agent in self.agents:
-        #     if agent.split("_")[0]=="soldier":
-        #         obs_map=self.state['map'].copy()
-        #         obs[agent]=obs_map.flatten()
-        #     else:
-        #         obs_map=self.state['map'].copy()
-        #         obs[agent]=obs_map.flatten()
-        # return obs
-    
-        # Old code with detailed observation fov restriction
-
-        # -1 for wall, 1 for terrorist, 2 for soldier, 0 for empty space, 3 for unknown region
         obs={}
         def is_blocking(x, y):
             if((x<0) or (x>=self.map_size[0]) or (y<0) or (y>=self.map_size[1])):
@@ -486,20 +398,13 @@ class Spec_Ops_Env(ParallelEnv):
             elif((self.state['map'][y][x] != 0)):
                 return True
             return False
-        # for agent in self.agents:
-        #     if agent.split("_")[0]=="soldier":
-        #         self.sol_visible=set()
-        #     else:
-        #         self.terr_visible=set()
         check_these=[-2,-1,1,2,-2,-1,1,2]
         
         for agent in self.agents:
             if agent.split("_")[0]=="soldier":
-                # is_visible=
                 def reveal(x, y):
                     if x>=0 and y>=0 and x<=self.map_size[1] and y<self.map_size[0]:
                         self.sol_visible.add((x, y))
-                        # self.s_visible.add((x,y))
                 obs_map=self.state['map'].copy()
                 custom_fov_algo.compute_fov((self.state[agent]['x'],self.state[agent]['y']), self.state[agent]['angle'], self.state[agent]['fov'], is_blocking, reveal)
                 sol_obs=[]
@@ -519,21 +424,12 @@ class Spec_Ops_Env(ParallelEnv):
                         else:
                             sol_obs.append(obs_map[self.state[agent]['y']][self.state[agent]['x']])
 
-                # for i in range(obs_map.shape[0]):
-                #     for j in range(obs_map.shape[1]):
-
-                #         if((j,i) in self.s_visible):
-                #             pass
-                #         else:
-                #             obs_map[i][j]=3
-
                 obs[agent]=np.array(sol_obs)
             else:
 
                 def reveal(x, y):
                     if x>=0 and y>=0 and x<=self.map_size[1] and y<self.map_size[0]:
                         self.terr_visible.add((x, y))
-                        # self.t_visible.add((x,y))
 
                 obs_map=self.state['map'].copy()
                 custom_fov_algo.compute_fov((self.state[agent]['x'],self.state[agent]['y']), self.state[agent]['angle'], self.state[agent]['fov'], is_blocking, reveal)
@@ -553,33 +449,17 @@ class Spec_Ops_Env(ParallelEnv):
                             terr_obs.append(3)
                         else:
                             terr_obs.append(obs_map[self.state[agent]['y']][self.state[agent]['x']])
-                # for i in range(obs_map.shape[0]):
-                #     for j in range(obs_map.shape[1]):
-                    
-                #         if((j,i) in self.t_visible):
-                #             pass
-                #         else:
-                #             obs_map[i][j]=3
           
                 obs[agent]=np.array(terr_obs)
         if ((self.state['terrorist_0']['x'],self.state['terrorist_0']['y']) in self.sol_visible):
             self.terr_last_known_pos['x']=self.state['terrorist_0']['x']
             self.terr_last_known_pos['y']=self.state['terrorist_0']['y']
-        
-        #print('OBSERVATIONS',obs)
         return obs
 
     def render(self):
         if(self.vizz == False):
             return
         """Renders the environment."""
-        #CLI Rendering
-        # os.system('cls' if os.name == 'nt' else 'clear')
-        # for i in self.state['map']:
-        #     for j in i:
-        #         print(j,end='')
-        #     print()
-        # print('------------------------------------\n\n\n')
 
         self.viz.update(self.state, self.agents, self.sol_hp, self.terr_hp)
         time.sleep(0.5)
@@ -595,24 +475,4 @@ from pettingzoo.test import api_test
 
 if __name__ == '__main__':
     env=Spec_Ops_Env()
-    # parallel_api_test(env, num_cycles=1000, verbose_progress=False)
     parallel_api_test(env, num_cycles=1000)
-    # observations, infos = env.reset()
-
-    # while env.agents:
-    #     #print(env.agents)
-    #     # this is where you would insert your policy
-    #     actions = {agent: env.action_space(agent).sample() for agent in env.agents}
-    #     #print(actions)
-    #     observations, rewards, terminations, truncations, infos = env.step(actions)
-    #     env.render()
-
-    #     # for i in observations['terrorist_0']:
-    #     # print("terr:", np.unique(observations['terrorist_0']))
-    #     # print("sol:", np.unique(observations['soldier_0']))
-    #     # print("observations:", observations['terrorist_0'])
-    #     #print("rewards:", rewards)
-    #     #print("----------------------------------------")
-    #     # visualize_environment(env, observations)
-    #     # break
-    # env.close()

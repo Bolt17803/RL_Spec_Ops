@@ -120,7 +120,7 @@ def policy_map_fn(agent_id: str, _episode=None, _worker=None, **_kwargs) -> str:
     return agent_id
     
 if __name__ == "__main__":
-    ray.init(ignore_reinit_error=True, num_gpus=0)
+    ray.init(ignore_reinit_error=True, num_gpus=1)
 
     env_name = "123"
 
@@ -136,7 +136,7 @@ if __name__ == "__main__":
     config = (
         PPOConfig()
         .environment(env="123", clip_actions=True)
-        #.rollouts(num_rollout_workers=4, rollout_fragment_length=128)
+        .rollouts(num_rollout_workers=7)#, rollout_fragment_length=128)
         .training(
             train_batch_size=512,
             lr=2e-5,
@@ -156,21 +156,20 @@ if __name__ == "__main__":
         )
         .debugging(log_level="ERROR")
         .framework(framework="tf")
-        .resources(num_gpus=0)#int(os.environ.get("RLLIB_NUM_GPUS", "0"))
+        .resources(num_gpus=1)#int(os.environ.get("RLLIB_NUM_GPUS", "0"))
     )
 
 
     # Get the user's home directory
-    user_home = os.path.expanduser("~/RL_Spec_Ops_logs")
+    user_home = os.path.expanduser("/data2/Vaibhav/Vaibhav/RLH/custom-environment/env/loggs")
     local_dir = user_home
-    print(local_dir)
 
     tune.run(
         "PPO",
         name="PPO",
         #resources_per_trial={"cpu": 4, "gpu": 1}, 
         stop={"timesteps_total": 5000000},
-        checkpoint_freq=10,
+        checkpoint_freq=50,
         local_dir=local_dir,
         config=config.to_dict(),
     )

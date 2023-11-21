@@ -271,7 +271,7 @@
 
 import os
 
-import torch
+#import torch
 import ray
 import supersuit as ss
 from ray import tune
@@ -281,7 +281,7 @@ from ray.rllib.env.wrappers.pettingzoo_env import ParallelPettingZooEnv
 from ray.rllib.models import ModelCatalog
 from ray.rllib.models.torch.torch_modelv2 import TorchModelV2
 from ray.tune.registry import register_env
-from torch import nn
+#from torch import nn
 from custom_environment import Spec_Ops_Env
     
 def env_creator():
@@ -295,7 +295,7 @@ ray.init(ignore_reinit_error=True, num_gpus=1)
 
 env_name = "123"
 
-print("\n\n\nNEE YABBA TORCH CUDA UNDA?:", torch.cuda.is_available(),'\n\n\n')
+#print("\n\n\nNEE YABBA TORCH CUDA UNDA?:", torch.cuda.is_available(),'\n\n\n')
 register_env(env_name, lambda config: ParallelPettingZooEnv(env_creator()))
 
 env=env_creator()
@@ -303,7 +303,7 @@ env=env_creator()
 config = (
         PPOConfig()
         .environment(env="123", clip_actions=True)
-        .rollouts(num_rollout_workers=4, rollout_fragment_length=128)
+        .rollouts(num_rollout_workers=7)#, rollout_fragment_length=128)
         .training(
             train_batch_size=512,
             lr=2e-5,
@@ -321,8 +321,8 @@ config = (
             policies=env.possible_agents,
             policy_mapping_fn=(lambda agent_id, *args, **kwargs: agent_id),
         )
-        .debugging(log_level="ERROR")
-        .framework(framework="torch")
+        .debugging(log_level="ERROR") 
+        .framework(framework="tf")
         .resources(num_gpus=1)#int(os.environ.get("RLLIB_NUM_GPUS", "0"))
     )
 
@@ -334,7 +334,7 @@ def new_policy_mapping_fn(agent_id, episode, worker, **kwargs):
 
 
 algo_w_2_policies = Algorithm.from_checkpoint(
-    checkpoint='/home/hemanthgaddey/RL_Spec_Ops_logs/PPO/PPO_123_a44ad_00000_0_2023-11-19_04-54-38/checkpoint_000006/',
+    checkpoint='/home/hemanthgaddey/Documents/RL_Spec_Ops/custom-environment/env/loggs/PPO/PPO_123_2323d_00000_0_2023-11-21_03-58-32/checkpoint_000194/algorithm_state.pkl',
     policy_ids=["terrorist_0", "soldier_0"],  # <- restore only those policy IDs here.
     policy_mapping_fn=policy_map_fn,  # <- use this new mapping fn.
 )
@@ -344,7 +344,6 @@ obs=env.reset()
 import time
 env.reset()
 while True:
-    print(obs)
     if(type(obs) == type(())):
         terr_a = algo_w_2_policies.compute_single_action(obs[0]['terrorist_0'], policy_id="terrorist_0")
         sol_a = algo_w_2_policies.compute_single_action(obs[0]['soldier_0'], policy_id="soldier_0")
@@ -353,9 +352,10 @@ while True:
         sol_a = algo_w_2_policies.compute_single_action(obs['soldier_0'], policy_id="soldier_0")
     obs, rewards, terminations, truncations, infos = env.step({"terrorist_0": terr_a, "soldier_0": sol_a})
     #out.clear_output(wait=True)
-    time.sleep(0.1)
+    #time.sleep(0.1)
     env.render()
-
+    print(obs)
+    print(terminations, truncations)
     if any(terminations.values()) or all(truncations.values()):
         break
 ray.shutdown()

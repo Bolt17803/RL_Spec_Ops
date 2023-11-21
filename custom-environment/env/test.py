@@ -334,7 +334,7 @@ def new_policy_mapping_fn(agent_id, episode, worker, **kwargs):
 
 
 algo_w_2_policies = Algorithm.from_checkpoint(
-    checkpoint='/home/hemanthgaddey/Documents/RL_Spec_Ops/custom-environment/env/loggs/PPO/PPO_123_2323d_00000_0_2023-11-21_03-58-32/checkpoint_000194/algorithm_state.pkl',
+    checkpoint='/home/hemanthgaddey/Documents/RL_Spec_Ops/custom-environment/env/loggs/PPO/PPO_123_2323d_00000_0_2023-11-21_03-58-32/checkpoint_000194',
     policy_ids=["terrorist_0", "soldier_0"],  # <- restore only those policy IDs here.
     policy_mapping_fn=policy_map_fn,  # <- use this new mapping fn.
 )

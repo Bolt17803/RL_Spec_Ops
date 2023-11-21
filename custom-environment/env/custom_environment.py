@@ -127,7 +127,7 @@ class Spec_Ops_Env(ParallelEnv):
         self.agents = self.possible_agents[:]
         self.timestamp=0
 
-        self.state = {'map':map.read_map_file('Maps/map_2.txt')} #{"map": np.zeros((self.config.get('map_size', MAP_SIZE)))}
+        self.state = {'map':map.read_map_file('Maps/map_1.txt')} #{"map": np.zeros((self.config.get('map_size', MAP_SIZE)))}
         # in state terrorist is given 1 and soldier given as 2 when there are two agents
         for agent in self.agents:
             #VVIP NOTE: Handling for invalid inputs/Initialization required!
@@ -144,9 +144,12 @@ class Spec_Ops_Env(ParallelEnv):
             self.state[agent]['angle']=np.random.randint(0,359) #if self.state[agent]['angle']<0 else self.state[agent]['angle']
             self.state[agent]['fov']=self.config.get(agent,{'fov': 90})['fov']  #Should be <179 becoz of math!
             self.state[agent]['shoot_angle']=self.config.get(agent,{'shooting_angle': 15})['shooting_angle']
-            self.state[agent]['hp'] = 100
+            if agent=="soldier_0":
+                self.state[agent]['hp'] = self.sol_hp
+            else:
+                self.state[agent]['hp'] = self.terr_hp
             self.state['map'][self.state[agent]['y']][self.state[agent]['x']] = self.agent_name_mapping[agent] # updating the location oof soldier and terrorist in state map
-            
+            # print(self.state[agent]['hp'])
             #Error Checking
             if(self.state[agent]['fov'] >= 180 or self.state[agent]['fov'] >= 180):
                 #print("invalid fov angle agent ki icchav, chusko bey")
@@ -578,7 +581,7 @@ class Spec_Ops_Env(ParallelEnv):
         #     print()
         # print('------------------------------------\n\n\n')
 
-        self.viz.update(self.state, self.agents)
+        self.viz.update(self.state, self.agents, self.sol_hp, self.terr_hp)
         time.sleep(0.5)
 
     def close(self):

@@ -62,11 +62,14 @@ class Visualizer():
         if (state is None):
             print("VISUALIZER ERROR: No state given to render!!")
             exit()
+        # Define health bar parameters
         health_bar_width = 60  # Define health bar width
         health_bar_height = 10  # Define health bar height
         max_health = 2  # Maximum health for soldier and terrorist
+        # Print health values for debugging
         print(sol_hp,"#")
         print(terr_hp,"$")
+        # Check for quit events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -127,31 +130,23 @@ class Visualizer():
                 pa += math.pi / 2
                 if 'hp' in agent:
                     
-                    health_percentage = sol_hp / 2  # Calculate health percentage
-                    # ... (existing code for health bar drawing)
-                    # Draw damage indicator if health is reduced
-                    # print("sol=",agent['hp'])
+                    health_percentage = sol_hp / 2  # Calculate health percentage)
                     self.total_health = 2 
                     if sol_hp < 2:  # Check if health reduced
-                        # self.screen.blit(fire, (w*agent.x,w*agent.y))
                         self.show_damage_image = True  # Set flag to show the damage image
                         self.damage_image_timer = self.damage_image_duration  # Set the timer
                         health_bar_width = health_bar_width/2
-                        health_bar_height = health_bar_height/2
-                        # Draw health bar for the soldier
-                        # print("ter",agent['hp'])
-                    # previous_healtht = agent['hp']
-                    
+                        health_bar_height = health_bar_height/2                    
                     
                     pygame.draw.rect(self.screen, GREEN, (health_bar_x, health_bar_y, health_bar_width, health_bar_height))
-                        # print("sol",sol_hp)
-                    # Draw health bar for the soldier
                     previous_health = sol_hp
                     health_bar_x = agent.x * self.screen_dim[0] / self.grid[0]  # X position of health bar
                     health_bar_y = agent.y * self.screen_dim[1] / self.grid[1] - 10  # Y position of health bar
                     remaining_health_width = int(health_percentage * health_bar_width)
 
+                    # Drawing the green portion of the health bar representing remaining health
                     pygame.draw.rect(self.screen, GREEN, (health_bar_x, health_bar_y, health_bar_width, health_bar_height))
+                    # Drawing the red portion of the health bar representing lost health
                     pygame.draw.rect(self.screen, RED, (health_bar_x + remaining_health_width, health_bar_y,
                                                         health_bar_width - remaining_health_width, health_bar_height))
 
@@ -201,25 +196,21 @@ class Visualizer():
                 pa += math.pi / 2  # Increment the angle for further drawing    
                 if 'hp' in agent:
                     health_percentage = terr_hp / 2  # Calculate health percentage
-                    # ... (existing code for health bar drawing)
-                    # Draw damage indicator if health is reduced
-                    # print("terr",agent)
                     previous_healtht = 2 
                     if terr_hp<2:  # Check if health reduced
-                        # self.screen.blit(fire, (agent.x * self.screen_dim[0] / self.grid[0],
-                        #                                          agent.y * self.screen_dim[1] / self.grid[1]))
+
                         self.show_damage_image = True  # Set flag to show the damage image
                         self.damage_image_timer = self.damage_image_duration  # Set the timer
                         health_bar_width = health_bar_width/2
                         health_bar_height = health_bar_height/2
-                        # Draw health bar for the soldier
-                        # print("ter",agent['hp'])
-                    # previous_healtht = agent['hp']
+
                     health_bar_x = agent.x * self.screen_dim[0] / self.grid[0]  # X position of health bar
                     health_bar_y = agent.y * self.screen_dim[1] / self.grid[1] - 10  # Y position of health bar
                     remaining_health_width = int(health_percentage * health_bar_width)
-                    
+
+                    # Draw the green portion of the health bar representing remaining health                    
                     pygame.draw.rect(self.screen, GREEN, (health_bar_x, health_bar_y, health_bar_width, health_bar_height))
+                    # Draw the red portion of the health bar representing lost health
                     pygame.draw.rect(self.screen, RED, (health_bar_x + remaining_health_width, health_bar_y,
                                                         health_bar_width - remaining_health_width, health_bar_height))
 
@@ -250,7 +241,7 @@ class Visualizer():
         else:
             self.show_damage_image = False  # Reset the flag
 
-
+         # Update the display
         pygame.display.flip()
 
     def quit(self):

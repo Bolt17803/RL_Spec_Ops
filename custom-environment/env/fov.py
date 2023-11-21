@@ -38,14 +38,18 @@ class Visualizer():
             exit()
 
     def update(self,state=None, reward={"soldier":0,"terrorist":0}):
+        # Check if a state is provided
         if(state == None):
             print("VISUALIZER ERROR: No state given to render!!")
             exit()
 
+        # Handle pygame events
         for event in pygame.event.get():
+            # Quit the game if the window is closed
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            # Handle player input for movement and actions
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_LEFT:
                     state['soldier_player']['x'] -= 1
@@ -55,26 +59,24 @@ class Visualizer():
                     state['soldier_player']['y'] -= 1
                 if event.key == pygame.K_DOWN:
                     state['soldier_player']['y'] += 1
-                if event.key == pygame.K_a:
+                if event.key == pygame.K_a: # Rotate player clockwise
                     state['soldier_player']['angle'] += 10
                     if(state['soldier_player']['angle']>360):
                         state['soldier_player']['angle'] -= 360
                 if event.key == pygame.K_d:
-                    state['soldier_player']['angle'] -= 10
+                    state['soldier_player']['angle'] -= 10 # Rotate player counterclockwise
                     if(state['soldier_player']['angle']<0):
                         state['soldier_player']['angle'] += 360
-                if event.key == pygame.K_q:
+                if event.key == pygame.K_q: # Fine-tune clockwise rotation
                     state['soldier_player']['angle'] += 5
                     if(state['soldier_player']['angle']>360):
                         state['soldier_player']['angle'] -= 360
-                if event.key == pygame.K_e:
+                if event.key == pygame.K_e: # Fine-tune counterclockwise rotation   
                     state['soldier_player']['angle'] -= 5
                     if(state['soldier_player']['angle']<0):
                         state['soldier_player']['angle'] += 5
 
-                #is_visible.clear()
-                # for i in is_visible:
-                    # print(i)
+                # Call custom FOV algorithm
                 custom_fov_algo.compute_fov((state['soldier_player']['x'],state['soldier_player']['y']), state['soldier_player']['angle'], state['soldier_player']['fov'], is_blocking, reveal)
 
 
@@ -87,7 +89,7 @@ class Visualizer():
             pygame.draw.line(self.screen, BLACK, (i, 0), (i, self.screen_dim[0]))
             pygame.draw.line(self.screen, BLACK, (0, i), (self.screen_dim[0], i))
 
-        #Draw walls
+        # Draw walls and visible areas
         for i in range(self.grid[0]):
             for j in range(self.grid[1]):
                 if (i,j) in is_visible:
@@ -96,14 +98,12 @@ class Visualizer():
                 if state['map'][j][i] == -1 and (i,j) in is_visible:
                     pygame.draw.rect(self.screen,BLACK,(w*i,w*j,w,w))
 
-        # Draw the agents
+        # Draw agents (soldiers and terrorists)
         for agent in self.agents:
-            #print(state[agent])
             agent_name = agent
             agent = AttributeDict(state[agent])
-            #print(agent)
             if('soldier' in agent_name):
-                #print('sol')
+                # Draw soldier agent
                 a = 20
                 pa = agent.angle
                 pa = math.pi*pa/180
@@ -116,8 +116,6 @@ class Visualizer():
                 shoot_angle=(agent.shoot_angle)*(math.pi/180)
                 pygame.draw.line(self.screen,BLACK,(px,py),(px+signx*l*math.cos(pa+fov/2), py+signy*l*math.sin(pa+fov/2)))
                 pygame.draw.line(self.screen,BLACK,(px,py),(px+signx*l*math.cos(pa-fov/2), py+signy*l*math.sin(pa-fov/2)))
-                # pygame.draw.line(self.screen,RED,(px,py),(px+signx*l*math.cos(pa+shoot_angle/2), py+signy*l*math.sin(pa+shoot_angle/2)))
-                # pygame.draw.line(self.screen,RED,(px,py),(px+signx*l*math.cos(pa-shoot_angle/2), py+signy*l*math.sin(pa-shoot_angle/2)))
 
 
                 pygame.draw.line(self.screen,RED,(px,py),(px+signx*l*math.cos(math.pi/4), py+signy*l*math.sin(math.pi/4)))
@@ -125,14 +123,12 @@ class Visualizer():
                 pygame.draw.line(self.screen,RED,(px,py),(px+signx*l*math.cos(5*math.pi/4), py+signy*l*math.sin(5*math.pi/4)))
                 pygame.draw.line(self.screen,RED,(px,py),(px+signx*l*math.cos(7*math.pi/4), py+signy*l*math.sin(7*math.pi/4)))
                 pa += math.pi/2
-                #print((0,20*reward['soldier'],20+55*reward['soldier']))
-                # pygame.draw.polygon(self.screen, (0,200*reward['soldier'],200+55*reward['soldier']), ((px+a*math.sin(pa),py+a*math.cos(pa)), (px+a*math.sin(math.pi/3-pa), py-a*math.cos(math.pi/3-pa)), (px-a*math.sin(2*math.pi/3-pa), py+a*math.cos(2*math.pi/3-pa))))
                 pygame.draw.polygon(self.screen, (0,0,255), ((px+a*math.sin(pa),py+a*math.cos(pa)), (px+a*math.sin(math.pi/3-pa), py-a*math.cos(math.pi/3-pa)), (px-a*math.sin(2*math.pi/3-pa), py+a*math.cos(2*math.pi/3-pa))))
 
                 pygame.draw.rect(self.screen,BLACK,(w*agent.x,w*agent.y,w,w))
                 
             elif('terrorist' in agent_name):
-                #print('terr')
+                # Draw terrorist agent
                 a = 20
                 pa = agent.angle
                 pa = math.pi*pa/180
@@ -148,21 +144,17 @@ class Visualizer():
                 pygame.draw.line(self.screen,RED,(px,py),(px+signx*l*math.cos(pa+shoot_angle/2), py+signy*l*math.sin(pa+shoot_angle/2)))
                 pygame.draw.line(self.screen,RED,(px,py),(px+signx*l*math.cos(pa-shoot_angle/2), py+signy*l*math.sin(pa-shoot_angle/2)))
                 pa += math.pi/2
-                #print((20+55*reward['terrorist'],20*reward['soldier'],0))
-                # pygame.draw.polygon(self.screen, (200+55*reward['terrorist'],200*reward['soldier'],0), ((px+a*math.sin(pa),py+a*math.cos(pa)), (px+a*math.sin(math.pi/3-pa), py-a*math.cos(math.pi/3-pa)), (px-a*math.sin(2*math.pi/3-pa), py+a*math.cos(2*math.pi/3-pa))))
                 pygame.draw.polygon(self.screen, (255,0,0), ((px+a*math.sin(pa),py+a*math.cos(pa)), (px+a*math.sin(math.pi/3-pa), py-a*math.cos(math.pi/3-pa)), (px-a*math.sin(2*math.pi/3-pa), py+a*math.cos(2*math.pi/3-pa))))
 
         # Update the screen
         pygame.display.flip()
 
     def quit(self):
+        # Quit the pygame module
         pygame.quit()
 
 import custom_fov_algo
-
-#state = {'map': [[0]*80]*80}
 state = {'map':map.read_map_file('Maps/map_0.txt')}
-#true_map = map.read_map_file('Maps/map_0.txt')
 state['soldier_player'] = {
     "x":40,
     "y":20,

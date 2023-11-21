@@ -5,6 +5,7 @@ import sys
 # Define the colors
 BLUE = (0, 0, 255)
 RED = (255, 0, 0)
+GREEN = (0,128,0)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 GREY = (128, 128, 128)
@@ -14,12 +15,14 @@ soldier_sprite = pygame.image.load('Maps/soldier.png')
 terrorist_sprite = pygame.image.load('Maps/terrorist.png')
 block = pygame.image.load('Maps/block.png')
 path = pygame.image.load('Maps/path.png')
-width = 50
-height = 50
+dil = pygame.image.load('Maps/dil.png')
+width = 55
+height = 55
 soldier = pygame.transform.scale(soldier_sprite, (width, height))
 terrorist = pygame.transform.scale(terrorist_sprite, (width, height))
-block = pygame.transform.scale(block, (20, 20))
-path = pygame.transform.scale(path, (20, 20))
+block = pygame.transform.scale(block, (55, 55))
+path = pygame.transform.scale(path, (55, 55))
+dil = pygame.transform.scale(dil,(5,5))
 bullets = []
 
 
@@ -30,7 +33,7 @@ class AttributeDict(dict):
 
 
 class Visualizer():
-    def __init__(self, grid=(10, 10), caption="Spec Ops Visualization", screen_dim=(800, 800), agents=None):
+    def __init__(self, grid=(10, 10), caption="Spec Ops Visualization", screen_dim=(825,825), agents=None):
         # Initialize Pygame
         pygame.init()
 
@@ -53,7 +56,9 @@ class Visualizer():
         if (state is None):
             print("VISUALIZER ERROR: No state given to render!!")
             exit()
-
+        health_bar_width = 40  # Define health bar width
+        health_bar_height = 5  # Define health bar height
+        max_health = 2  # Maximum health for soldier and terrorist
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -112,16 +117,40 @@ class Visualizer():
                                   py + signy * l * math.sin(pa - shoot_angle / 2)))
                 # Increment the angle for further drawing
                 pa += math.pi / 2
+                if 'hp' in agent:
+                    sol_hp = agent['hp']
+                    health_percentage = sol_hp / 2  # Calculate health percentage
+                    # ... (existing code for health bar drawing)
 
-                new_bullet_x, new_bullet_y = px, py  # Initial position at the soldier's location
-                bullets.append((new_bullet_x, new_bullet_y))  # Add the new bullet to the list
+                    # Draw damage indicator if health is reduced
+                    if sol_hp < 2:  # Check if health reduced
+                        self.screen.blit(dil, (agent.x * self.screen_dim[0] / self.grid[0],
+                                                                 agent.y * self.screen_dim[1] / self.grid[1]))
 
-                # Rotate the soldier image based on its angle
+                    # Draw health bar for the soldier
+                    health_bar_x = agent.x * self.screen_dim[0] / self.grid[0]  # X position of health bar
+                    health_bar_y = agent.y * self.screen_dim[1] / self.grid[1] - 10  # Y position of health bar
+                    remaining_health_width = int(health_percentage * health_bar_width)
+
+                    pygame.draw.rect(self.screen, GREEN, (health_bar_x, health_bar_y, health_bar_width, health_bar_height))
+                    pygame.draw.rect(self.screen, RED, (health_bar_x + remaining_health_width, health_bar_y,
+                                                        health_bar_width - remaining_health_width, health_bar_height))
+
+                    # Rotate the soldier image based on its angle
+                    rotated_soldier = pygame.transform.rotate(soldier, agent.angle)
+                    # Calculate the position to blit the rotated image (centered at the agent's position)
+                    rotated_rect = rotated_soldier.get_rect(center=(agent.x * self.screen_dim[0] / self.grid[0] + w / 2,
+                                                                    agent.y * self.screen_dim[1] / self.grid[1] + w / 2))
+                    self.screen.blit(rotated_soldier, rotated_rect.topleft)
+                
+                # # Rotate the soldier image based on its angle
                 rotated_soldier = pygame.transform.rotate(soldier, agent.angle)
-                # Calculate the position to blit the rotated image (centered at the agent's position)
+                # # Calculate the position to blit the rotated image (centered at the agent's position)
+                
                 rotated_rect = rotated_soldier.get_rect(center=(w * agent.x + w / 2, w * agent.y + w / 2))
-                self.screen.blit(rotated_soldier, rotated_rect.topleft)
 
+                self.screen.blit(rotated_soldier, rotated_rect.topleft)
+               
             elif 'terrorist' in agent_name:
                 # Check if the agent is a terrorist
                 a = 20  # Set the length of an arrow to represent terrorist orientation
@@ -150,7 +179,38 @@ class Visualizer():
                 pygame.draw.line(self.screen, RED, (px, py),
                                  (px + signx * l * math.cos(pa - shoot_angle / 2),
                                   py + signy * l * math.sin(pa - shoot_angle / 2)))
-                pa += math.pi / 2  # Increment the angle for further drawing
+                pa += math.pi / 2  # Increment the angle for further drawing    
+                if 'hp' in agent:
+                    ter_hp = agent['hp']
+                    health_percentage = ter_hp / 2  # Calculate health percentage
+                    # ... (existing code for health bar drawing)
+
+                    # Draw damage indicator if health is reduced
+                    if ter_hp < 2:  # Check if health reduced
+                        self.screen.blit(dil, (agent.x * self.screen_dim[0] / self.grid[0],
+                                                                 agent.y * self.screen_dim[1] / self.grid[1]))
+
+                    # Draw health bar for the soldier
+                    health_bar_x = agent.x * self.screen_dim[0] / self.grid[0]  # X position of health bar
+                    health_bar_y = agent.y * self.screen_dim[1] / self.grid[1] - 10  # Y position of health bar
+                    remaining_health_width = int(health_percentage * health_bar_width)
+
+                    pygame.draw.rect(self.screen, GREEN, (health_bar_x, health_bar_y, health_bar_width, health_bar_height))
+                    pygame.draw.rect(self.screen, RED, (health_bar_x + remaining_health_width, health_bar_y,
+                                                        health_bar_width - remaining_health_width, health_bar_height))
+
+                    # Rotate the soldier image based on its angle
+                    rotated_terrorist = pygame.transform.rotate(terrorist, agent.angle)
+                    # Calculate the position to blit the rotated image (centered at the agent's position)
+                    rotated_rect = rotated_terrorist.get_rect(center=(agent.x * self.screen_dim[0] / self.grid[0] + w / 2,
+                                                                    agent.y * self.screen_dim[1] / self.grid[1] + w / 2))
+                    self.screen.blit(rotated_terrorist, rotated_rect.topleft)
+                # Rotate the terrorist image based on its angle
+                rotated_terrorist = pygame.transform.rotate(terrorist, agent.angle)
+                # Calculate the position to blit the rotated image (centered at the agent's position)
+                rotated_rect = rotated_terrorist.get_rect(center=(agent.x * self.screen_dim[0] / self.grid[0] + w / 2,
+                                                                  agent.y * self.screen_dim[1] / self.grid[1] + w / 2))
+                self.screen.blit(rotated_terrorist, rotated_rect.topleft)
 
                 # Draw the terrorist image at the calculated position
                 rotated_terrorist = pygame.transform.rotate(terrorist, agent.angle)

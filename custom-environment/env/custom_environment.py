@@ -127,7 +127,7 @@ class Spec_Ops_Env(ParallelEnv):
         self.agents = self.possible_agents[:]
         self.timestamp=0
 
-        self.state = {'map':map.read_map_file('Maps/map_1.txt')} #{"map": np.zeros((self.config.get('map_size', MAP_SIZE)))}
+        self.state = {'map':map.read_map_file('Maps/map_2.txt')} #{"map": np.zeros((self.config.get('map_size', MAP_SIZE)))}
         # in state terrorist is given 1 and soldier given as 2 when there are two agents
         for agent in self.agents:
             #VVIP NOTE: Handling for invalid inputs/Initialization required!

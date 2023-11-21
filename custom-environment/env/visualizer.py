@@ -15,14 +15,13 @@ soldier_sprite = pygame.image.load('Maps/soldier.png')
 terrorist_sprite = pygame.image.load('Maps/terrorist.png')
 block = pygame.image.load('Maps/block.png')
 path = pygame.image.load('Maps/path.png')
-dil = pygame.image.load('Maps/dil.png')
+fire = pygame.image.load('Maps/fire.png')
 width = 55
 height = 55
 soldier = pygame.transform.scale(soldier_sprite, (width, height))
 terrorist = pygame.transform.scale(terrorist_sprite, (width, height))
 block = pygame.transform.scale(block, (55, 55))
 path = pygame.transform.scale(path, (55, 55))
-dil = pygame.transform.scale(dil,(5,5))
 bullets = []
 
 
@@ -121,11 +120,10 @@ class Visualizer():
                     sol_hp = agent['hp']
                     health_percentage = sol_hp / 2  # Calculate health percentage
                     # ... (existing code for health bar drawing)
-
+                    print('BRUH',sol_hp)
                     # Draw damage indicator if health is reduced
-                    if sol_hp < 2:  # Check if health reduced
-                        self.screen.blit(dil, (agent.x * self.screen_dim[0] / self.grid[0],
-                                                                 agent.y * self.screen_dim[1] / self.grid[1]))
+                    if sol_hp == 1:  # Check if health reduced
+                        self.screen.blit(fire, (w*agent.x,w*agent.y))
 
                     # Draw health bar for the soldier
                     health_bar_x = agent.x * self.screen_dim[0] / self.grid[0]  # X position of health bar
@@ -184,10 +182,10 @@ class Visualizer():
                     ter_hp = agent['hp']
                     health_percentage = ter_hp / 2  # Calculate health percentage
                     # ... (existing code for health bar drawing)
-
+                    print("bro",ter_hp)
                     # Draw damage indicator if health is reduced
-                    if ter_hp < 2:  # Check if health reduced
-                        self.screen.blit(dil, (agent.x * self.screen_dim[0] / self.grid[0],
+                    if ter_hp == 100:  # Check if health reduced
+                        self.screen.blit(fire, (agent.x * self.screen_dim[0] / self.grid[0],
                                                                  agent.y * self.screen_dim[1] / self.grid[1]))
 
                     # Draw health bar for the soldier

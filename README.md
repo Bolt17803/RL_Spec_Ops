@@ -49,27 +49,33 @@ RL_Spec_Ops/
 ```bash
 git clone https://github.com/Bolt17803/RL_Spec_Ops.git
 cd RL_Spec_Ops
+```
 
 2. Install dependencies:
-bash
+```bash
 pip install -r requirements.txt
+```
 
 ## Quick Start
 ### Training with PPO
-bash
+```bash
 python custom-environment/env/train_ppo.py
+```
 
 ### Training with DQN
-bash
+```bash
 python custom-environment/env/train_dqn.py
+```
 
 ### Running Tests
-bash
+```bash
 python custom-environment/env/test.py
+```
 
 ### Visualizing the Environment
-bash
+```bash
 python custom-environment/env/visualizer.py
+```
 
 ## Key Components
 - custom_environment.py: Core environment logic implementing the tactical scenario
